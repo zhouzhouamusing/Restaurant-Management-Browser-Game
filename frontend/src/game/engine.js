@@ -4,17 +4,28 @@ import { drawCustomerBody, drawStaffBody } from "./character-renderer.js";
 import {
   drawCreamWall, drawBrickWall, drawStripeWall, drawFloralWall,
   drawWoodFloor, drawCheckerFloor, drawTerracottaFloor, drawMarbleFloor,
-  drawMonstera, drawFicus, drawSucculent, drawBamboo,
+  drawMonstera, drawFicus, drawSucculent, drawBamboo, drawHangingPlant,
   drawLandscapePainting, drawFoodPainting, drawAbstractPainting,
-  draw3DTable, drawWindowLightShaft, drawVignette, drawBaseboard
+  drawWallClock, drawWallShelf, drawDecorMirror,
+  drawPendantLamp, drawChandelier, drawWallSconce, drawFloorLamp,
+  drawCabinet, drawBookshelf, drawSofa, drawWineRack,
+  drawAirConditioner, drawWaterDispenser, drawSpeaker, drawTV,
+  drawVelvetCurtain, drawSheerCurtain, drawBambooBlinds,
+  draw3DTable, drawWindowLightShaft, drawVignette, drawBaseboard,
+  drawCeilingMolding, drawAmbientLighting
 } from "./decoration-renderer.js";
 import { findItemById } from "./decorations.js";
 
 const FONT = '"ZCOOL KuaiLe", "Nunito", "Comic Sans MS", cursive';
 
 const DECORATION_DRAW_FNS = {
-  drawMonstera, drawFicus, drawSucculent, drawBamboo,
-  drawLandscapePainting, drawFoodPainting, drawAbstractPainting
+  drawMonstera, drawFicus, drawSucculent, drawBamboo, drawHangingPlant,
+  drawLandscapePainting, drawFoodPainting, drawAbstractPainting,
+  drawWallClock, drawWallShelf, drawDecorMirror,
+  drawPendantLamp, drawChandelier, drawWallSconce, drawFloorLamp,
+  drawCabinet, drawBookshelf, drawSofa, drawWineRack,
+  drawAirConditioner, drawWaterDispenser, drawSpeaker, drawTV,
+  drawVelvetCurtain, drawSheerCurtain, drawBambooBlinds
 };
 
 export class GameEngine {
@@ -113,7 +124,7 @@ export class GameEngine {
       } else if (this.dragTarget.type === 'decoration') {
         const placed = this.decorationState.placed[this.dragTarget.index];
         const item = findItemById(placed.id);
-        const isWallItem = item && item.category === 'wall_art';
+        const isWallItem = item && (item.category === 'wall_art' || item.category === 'lighting' || item.category === 'curtains' || item.category === 'appliances');
         placed.x = Math.max(0.03, Math.min(0.97, newX));
         if (isWallItem) {
           placed.y = Math.max(0.02, Math.min(0.32, newY));
@@ -513,6 +524,7 @@ export class GameEngine {
     this._drawBackgroundCached(ctx, w, h);
     this._drawWalls(ctx, w, h);
     this._drawPlacedDecorations(ctx, w, h);
+    drawAmbientLighting(ctx, w, h, this.decorationState.placed);
     this._drawTables(ctx);
     this._drawCustomers(ctx);
     this._drawStaffCharacters(ctx);
@@ -541,6 +553,9 @@ export class GameEngine {
       // Draw wall
       const wallH = h * 0.35;
       this._drawWallPattern(bctx, w, h, wallH);
+
+      // Draw ceiling molding
+      drawCeilingMolding(bctx, w);
 
       // Draw baseboard
       drawBaseboard(bctx, w, wallH);

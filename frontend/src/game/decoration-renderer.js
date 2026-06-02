@@ -963,3 +963,929 @@ export function drawBaseboard(ctx, w, floorY) {
   ctx.fillStyle = 'rgba(0,0,0,0.15)'
   ctx.fillRect(0, floorY - 1, w, 2)
 }
+
+// ===== CEILING & AMBIENT LIGHTING =====
+
+export function drawCeilingMolding(ctx, w) {
+  // crown molding with 3D profile
+  ctx.fillStyle = '#e8ddd0'
+  ctx.fillRect(0, 0, w, 6)
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'
+  ctx.fillRect(0, 0, w, 2)
+  ctx.fillStyle = '#d4c8b8'
+  ctx.fillRect(0, 6, w, 3)
+  ctx.fillStyle = 'rgba(0,0,0,0.08)'
+  ctx.fillRect(0, 9, w, 2)
+}
+
+export function drawAmbientLighting(ctx, w, h, placedDecorations) {
+  // global warm ambient from ceiling
+  const ambGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5)
+  ambGrad.addColorStop(0, 'rgba(255, 240, 200, 0.04)')
+  ambGrad.addColorStop(1, 'rgba(255, 240, 200, 0)')
+  ctx.fillStyle = ambGrad
+  ctx.fillRect(0, 0, w, h * 0.5)
+
+  // ambient occlusion at wall-floor junction
+  const aoGrad = ctx.createLinearGradient(0, h * 0.35 - 5, 0, h * 0.35 + 20)
+  aoGrad.addColorStop(0, 'rgba(0,0,0,0)')
+  aoGrad.addColorStop(0.3, 'rgba(0,0,0,0.06)')
+  aoGrad.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = aoGrad
+  ctx.fillRect(0, h * 0.35 - 5, w, 25)
+
+  // corner shadows (left and right wall edges)
+  const leftShadow = ctx.createLinearGradient(0, 0, 30, 0)
+  leftShadow.addColorStop(0, 'rgba(0,0,0,0.06)')
+  leftShadow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = leftShadow
+  ctx.fillRect(0, 0, 30, h * 0.35)
+
+  const rightShadow = ctx.createLinearGradient(w, 0, w - 30, 0)
+  rightShadow.addColorStop(0, 'rgba(0,0,0,0.06)')
+  rightShadow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = rightShadow
+  ctx.fillRect(w - 30, 0, 30, h * 0.35)
+
+  // floor ambient occlusion near counter
+  const floorAO = ctx.createLinearGradient(0, h - 80, 0, h - 70)
+  floorAO.addColorStop(0, 'rgba(0,0,0,0)')
+  floorAO.addColorStop(1, 'rgba(0,0,0,0.08)')
+  ctx.fillStyle = floorAO
+  ctx.fillRect(0, h - 80, w, 10)
+}
+
+// ===== LIGHTING RENDERERS =====
+
+export function drawPendantLamp(ctx, x, y, w, h) {
+  ctx.save()
+  // cord
+  ctx.strokeStyle = '#333'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x, y + h * 0.3)
+  ctx.stroke()
+
+  // shade (trapezoid)
+  const shadeTop = y + h * 0.3
+  const shadeBot = y + h * 0.55
+  const topW = w * 0.15
+  const botW = w * 0.5
+
+  ctx.beginPath()
+  ctx.moveTo(x - topW, shadeTop)
+  ctx.lineTo(x + topW, shadeTop)
+  ctx.lineTo(x + botW, shadeBot)
+  ctx.lineTo(x - botW, shadeBot)
+  ctx.closePath()
+  const shadeGrad = ctx.createLinearGradient(x - botW, shadeTop, x + botW, shadeTop)
+  shadeGrad.addColorStop(0, '#2c2c2c')
+  shadeGrad.addColorStop(0.5, '#444')
+  shadeGrad.addColorStop(1, '#2c2c2c')
+  ctx.fillStyle = shadeGrad
+  ctx.fill()
+
+  // inner glow
+  ctx.beginPath()
+  ctx.ellipse(x, shadeBot + 2, botW * 0.7, 4, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(255, 220, 100, 0.6)'
+  ctx.fill()
+
+  // light cone
+  const coneGrad = ctx.createRadialGradient(x, shadeBot, 2, x, shadeBot + h * 0.4, w * 0.8)
+  coneGrad.addColorStop(0, 'rgba(255, 230, 150, 0.15)')
+  coneGrad.addColorStop(1, 'rgba(255, 230, 150, 0)')
+  ctx.fillStyle = coneGrad
+  ctx.fillRect(x - w, shadeBot, w * 2, h * 0.5)
+
+  ctx.restore()
+}
+
+export function drawChandelier(ctx, x, y, w, h) {
+  ctx.save()
+
+  // main rod
+  ctx.strokeStyle = '#8B7355'
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x, y + h * 0.2)
+  ctx.stroke()
+
+  // central ornament
+  ctx.beginPath()
+  ctx.arc(x, y + h * 0.22, 5, 0, Math.PI * 2)
+  ctx.fillStyle = '#DAA520'
+  ctx.fill()
+
+  // arms (5 branches)
+  const armY = y + h * 0.25
+  const arms = [-0.4, -0.2, 0, 0.2, 0.4]
+  for (const offset of arms) {
+    const ax = x + offset * w
+    ctx.strokeStyle = '#8B7355'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(x, armY)
+    ctx.quadraticCurveTo(x + offset * w * 0.5, armY + 8, ax, armY + 12)
+    ctx.stroke()
+
+    // crystal drops
+    ctx.fillStyle = '#e8e0f0'
+    ctx.beginPath()
+    ctx.ellipse(ax, armY + 16, 3, 5, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'
+    ctx.beginPath()
+    ctx.ellipse(ax - 1, armY + 14, 1.5, 2, 0, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // warm glow below
+  const glowGrad = ctx.createRadialGradient(x, armY + 20, 5, x, armY + 20, w * 0.7)
+  glowGrad.addColorStop(0, 'rgba(255, 220, 120, 0.12)')
+  glowGrad.addColorStop(1, 'rgba(255, 220, 120, 0)')
+  ctx.fillStyle = glowGrad
+  ctx.fillRect(x - w, armY, w * 2, h * 0.7)
+
+  ctx.restore()
+}
+
+export function drawWallSconce(ctx, x, y, w, h) {
+  ctx.save()
+  // bracket
+  ctx.fillStyle = '#8B7355'
+  ctx.fillRect(x - 3, y + h * 0.3, 6, h * 0.15)
+
+  // arm
+  ctx.beginPath()
+  ctx.moveTo(x, y + h * 0.35)
+  ctx.quadraticCurveTo(x + w * 0.3, y + h * 0.3, x + w * 0.1, y + h * 0.2)
+  ctx.strokeStyle = '#8B7355'
+  ctx.lineWidth = 2
+  ctx.stroke()
+
+  // shade
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.2, y + h * 0.1)
+  ctx.lineTo(x + w * 0.2, y + h * 0.1)
+  ctx.lineTo(x + w * 0.3, y + h * 0.35)
+  ctx.lineTo(x - w * 0.3, y + h * 0.35)
+  ctx.closePath()
+  ctx.fillStyle = '#f5e6d3'
+  ctx.fill()
+  ctx.strokeStyle = '#d4b896'
+  ctx.lineWidth = 0.5
+  ctx.stroke()
+
+  // glow on wall
+  const glow = ctx.createRadialGradient(x, y + h * 0.3, 3, x, y + h * 0.3, w)
+  glow.addColorStop(0, 'rgba(255, 220, 120, 0.15)')
+  glow.addColorStop(1, 'rgba(255, 220, 120, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(x - w, y, w * 2, h)
+
+  ctx.restore()
+}
+
+export function drawFloorLamp(ctx, x, y, w, h) {
+  ctx.save()
+  // base
+  ctx.beginPath()
+  ctx.ellipse(x, y + h * 0.95, w * 0.35, 5, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#444'
+  ctx.fill()
+
+  // pole
+  ctx.strokeStyle = '#555'
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(x, y + h * 0.92)
+  ctx.lineTo(x, y + h * 0.15)
+  ctx.stroke()
+
+  // shade
+  ctx.beginPath()
+  ctx.ellipse(x, y + h * 0.12, w * 0.4, h * 0.12, 0, 0, Math.PI * 2)
+  const sg = ctx.createRadialGradient(x, y + h * 0.12, 0, x, y + h * 0.12, w * 0.4)
+  sg.addColorStop(0, '#fff8e0')
+  sg.addColorStop(1, '#e8d8b8')
+  ctx.fillStyle = sg
+  ctx.fill()
+  ctx.strokeStyle = '#bba888'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  // glow
+  const glow = ctx.createRadialGradient(x, y + h * 0.25, 5, x, y + h * 0.25, w)
+  glow.addColorStop(0, 'rgba(255, 230, 150, 0.12)')
+  glow.addColorStop(1, 'rgba(255, 230, 150, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(x - w, y, w * 2, h)
+
+  ctx.restore()
+}
+
+// ===== FURNITURE RENDERERS =====
+
+export function drawCabinet(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.08)'
+  ctx.fillRect(x - w/2 + 3, y + h - 3, w, 5)
+
+  // body
+  const bodyGrad = ctx.createLinearGradient(x - w/2, y, x + w/2, y)
+  bodyGrad.addColorStop(0, '#5D3A1A')
+  bodyGrad.addColorStop(0.5, '#7B5230')
+  bodyGrad.addColorStop(1, '#5D3A1A')
+  ctx.fillStyle = bodyGrad
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 3)
+  ctx.fill()
+
+  // top surface (3D)
+  ctx.fillStyle = '#8B6340'
+  ctx.fillRect(x - w/2 - 2, y - 3, w + 4, 5)
+  ctx.fillStyle = 'rgba(255,255,255,0.12)'
+  ctx.fillRect(x - w/2 - 2, y - 3, w + 4, 2)
+
+  // doors
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)'
+  ctx.lineWidth = 1
+  ctx.strokeRect(x - w/2 + 4, y + 6, w/2 - 6, h - 14)
+  ctx.strokeRect(x + 2, y + 6, w/2 - 6, h - 14)
+
+  // handles
+  ctx.fillStyle = '#DAA520'
+  ctx.beginPath()
+  ctx.arc(x - 4, y + h/2, 2.5, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(x + 4, y + h/2, 2.5, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function drawBookshelf(ctx, x, y, w, h) {
+  ctx.save()
+  // frame
+  const frameGrad = ctx.createLinearGradient(x - w/2, y, x + w/2, y)
+  frameGrad.addColorStop(0, '#4a3020')
+  frameGrad.addColorStop(0.5, '#6b4a35')
+  frameGrad.addColorStop(1, '#4a3020')
+  ctx.fillStyle = frameGrad
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 2)
+  ctx.fill()
+
+  // shelves (4 levels)
+  const shelfCount = 4
+  const shelfH = h / shelfCount
+  const bookColors = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#d35400', '#2c3e50', '#f39c12']
+
+  for (let i = 0; i < shelfCount; i++) {
+    const sy = y + i * shelfH + 3
+    // shelf board
+    ctx.fillStyle = '#5a3a25'
+    ctx.fillRect(x - w/2 + 2, sy + shelfH - 4, w - 4, 4)
+    ctx.fillStyle = 'rgba(255,255,255,0.1)'
+    ctx.fillRect(x - w/2 + 2, sy + shelfH - 4, w - 4, 1)
+
+    // books on shelf
+    let bx = x - w/2 + 5
+    while (bx < x + w/2 - 8) {
+      const bw = 4 + Math.random() * 4
+      const bh = shelfH - 8 - Math.random() * 4
+      const color = bookColors[Math.floor(Math.random() * bookColors.length)]
+      ctx.fillStyle = color
+      ctx.fillRect(bx, sy + shelfH - 4 - bh, bw, bh)
+      // spine highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.15)'
+      ctx.fillRect(bx, sy + shelfH - 4 - bh, 1, bh)
+      bx += bw + 1
+    }
+  }
+  ctx.restore()
+}
+
+export function drawSofa(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow
+  ctx.beginPath()
+  ctx.ellipse(x, y + h * 0.9, w * 0.45, 5, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.1)'
+  ctx.fill()
+
+  // body
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y + h * 0.3, w, h * 0.5, 6)
+  const sofaGrad = ctx.createLinearGradient(x - w/2, y, x + w/2, y)
+  sofaGrad.addColorStop(0, '#5D3A1A')
+  sofaGrad.addColorStop(0.5, '#7B4F2E')
+  sofaGrad.addColorStop(1, '#5D3A1A')
+  ctx.fillStyle = sofaGrad
+  ctx.fill()
+
+  // back rest
+  ctx.beginPath()
+  ctx.roundRect(x - w/2 + 3, y, w - 6, h * 0.45, [6, 6, 0, 0])
+  ctx.fillStyle = '#6B4226'
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255,255,255,0.06)'
+  ctx.fillRect(x - w/2 + 5, y + 3, w - 10, 4)
+
+  // cushions
+  ctx.beginPath()
+  ctx.roundRect(x - w/2 + 5, y + h * 0.35, w * 0.4, h * 0.35, 4)
+  ctx.fillStyle = '#8B5E3C'
+  ctx.fill()
+  ctx.beginPath()
+  ctx.roundRect(x + 3, y + h * 0.35, w * 0.4, h * 0.35, 4)
+  ctx.fillStyle = '#8B5E3C'
+  ctx.fill()
+
+  // armrests
+  ctx.fillStyle = '#5D3A1A'
+  ctx.beginPath()
+  ctx.roundRect(x - w/2 - 3, y + h * 0.15, 8, h * 0.55, 4)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.roundRect(x + w/2 - 5, y + h * 0.15, 8, h * 0.55, 4)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function drawWineRack(ctx, x, y, w, h) {
+  ctx.save()
+  // frame
+  ctx.fillStyle = '#3e2723'
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 3)
+  ctx.fill()
+
+  // grid slots for bottles
+  const cols = 3
+  const rows = 4
+  const slotW = (w - 8) / cols
+  const slotH = (h - 8) / rows
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const sx = x - w/2 + 4 + c * slotW
+      const sy = y + 4 + r * slotH
+      // diamond slot
+      ctx.strokeStyle = '#5D3A1A'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(sx + slotW/2, sy)
+      ctx.lineTo(sx + slotW, sy + slotH/2)
+      ctx.lineTo(sx + slotW/2, sy + slotH)
+      ctx.lineTo(sx, sy + slotH/2)
+      ctx.closePath()
+      ctx.stroke()
+
+      // bottle (random fill)
+      if (Math.sin(r * 3.7 + c * 2.3) > -0.3) {
+        ctx.beginPath()
+        ctx.ellipse(sx + slotW/2, sy + slotH/2, slotW * 0.25, slotH * 0.35, 0, 0, Math.PI * 2)
+        const bColor = ['#4a0e0e', '#1a3320', '#2c1a40'][Math.floor(Math.abs(Math.sin(r + c * 2)) * 3)]
+        ctx.fillStyle = bColor
+        ctx.fill()
+        // bottle shine
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'
+        ctx.beginPath()
+        ctx.ellipse(sx + slotW/2 - 1, sy + slotH/2 - 2, 2, slotH * 0.15, 0, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+  }
+  ctx.restore()
+}
+
+// ===== APPLIANCE RENDERERS =====
+
+export function drawAirConditioner(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow on wall
+  ctx.fillStyle = 'rgba(0,0,0,0.06)'
+  ctx.fillRect(x - w/2 + 2, y + h + 1, w - 4, 4)
+
+  // body
+  const bodyGrad = ctx.createLinearGradient(x - w/2, y, x - w/2, y + h)
+  bodyGrad.addColorStop(0, '#f8f8f8')
+  bodyGrad.addColorStop(0.8, '#e8e8e8')
+  bodyGrad.addColorStop(1, '#d0d0d0')
+  ctx.fillStyle = bodyGrad
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 4)
+  ctx.fill()
+
+  // top edge highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'
+  ctx.fillRect(x - w/2 + 2, y + 1, w - 4, 2)
+
+  // vent lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+  ctx.lineWidth = 0.8
+  for (let i = 0; i < 5; i++) {
+    const vy = y + h * 0.5 + i * 3
+    ctx.beginPath()
+    ctx.moveTo(x - w/2 + 8, vy)
+    ctx.lineTo(x + w/2 - 8, vy)
+    ctx.stroke()
+  }
+
+  // display LED
+  ctx.fillStyle = '#00cc44'
+  ctx.beginPath()
+  ctx.arc(x + w/2 - 12, y + 8, 2, 0, Math.PI * 2)
+  ctx.fill()
+
+  // cold air effect
+  ctx.globalAlpha = 0.04
+  ctx.fillStyle = '#aaddff'
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.3, y + h)
+  ctx.lineTo(x + w * 0.3, y + h)
+  ctx.lineTo(x + w * 0.5, y + h + 30)
+  ctx.lineTo(x - w * 0.5, y + h + 30)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+export function drawWaterDispenser(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow
+  ctx.beginPath()
+  ctx.ellipse(x, y + h - 2, w * 0.4, 4, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.08)'
+  ctx.fill()
+
+  // body
+  const bodyGrad = ctx.createLinearGradient(x - w/2, y + h * 0.25, x + w/2, y + h * 0.25)
+  bodyGrad.addColorStop(0, '#ddd')
+  bodyGrad.addColorStop(0.5, '#f5f5f5')
+  bodyGrad.addColorStop(1, '#ccc')
+  ctx.fillStyle = bodyGrad
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y + h * 0.25, w, h * 0.7, 4)
+  ctx.fill()
+
+  // water bottle on top
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.25, y + h * 0.25)
+  ctx.lineTo(x - w * 0.15, y + 5)
+  ctx.lineTo(x + w * 0.15, y + 5)
+  ctx.lineTo(x + w * 0.25, y + h * 0.25)
+  ctx.closePath()
+  const bottleGrad = ctx.createLinearGradient(x - w * 0.25, y, x + w * 0.25, y)
+  bottleGrad.addColorStop(0, 'rgba(100, 180, 255, 0.3)')
+  bottleGrad.addColorStop(0.5, 'rgba(150, 210, 255, 0.4)')
+  bottleGrad.addColorStop(1, 'rgba(100, 180, 255, 0.3)')
+  ctx.fillStyle = bottleGrad
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(100, 150, 200, 0.3)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  // taps
+  ctx.fillStyle = '#e74c3c'
+  ctx.beginPath()
+  ctx.roundRect(x - 6, y + h * 0.45, 5, 4, 1)
+  ctx.fill()
+  ctx.fillStyle = '#3498db'
+  ctx.beginPath()
+  ctx.roundRect(x + 1, y + h * 0.45, 5, 4, 1)
+  ctx.fill()
+
+  // drip tray
+  ctx.fillStyle = '#999'
+  ctx.fillRect(x - w * 0.3, y + h * 0.55, w * 0.6, 3)
+
+  ctx.restore()
+}
+
+export function drawSpeaker(ctx, x, y, w, h) {
+  ctx.save()
+  // body
+  const bodyGrad = ctx.createLinearGradient(x - w/2, y, x + w/2, y)
+  bodyGrad.addColorStop(0, '#2c2c2c')
+  bodyGrad.addColorStop(0.5, '#444')
+  bodyGrad.addColorStop(1, '#2c2c2c')
+  ctx.fillStyle = bodyGrad
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 5)
+  ctx.fill()
+
+  // speaker cone
+  ctx.beginPath()
+  ctx.arc(x, y + h * 0.4, w * 0.3, 0, Math.PI * 2)
+  ctx.fillStyle = '#222'
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(x, y + h * 0.4, w * 0.15, 0, Math.PI * 2)
+  ctx.fillStyle = '#555'
+  ctx.fill()
+
+  // tweeter
+  ctx.beginPath()
+  ctx.arc(x, y + h * 0.75, w * 0.15, 0, Math.PI * 2)
+  ctx.fillStyle = '#333'
+  ctx.fill()
+
+  // LED
+  ctx.fillStyle = '#00ff88'
+  ctx.beginPath()
+  ctx.arc(x, y + h - 5, 2, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function drawTV(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow behind
+  ctx.shadowColor = 'rgba(0,0,0,0.3)'
+  ctx.shadowBlur = 8
+  ctx.shadowOffsetY = 3
+
+  // bezel
+  ctx.fillStyle = '#1a1a1a'
+  ctx.beginPath()
+  ctx.roundRect(x - w/2, y, w, h, 4)
+  ctx.fill()
+  ctx.restore()
+
+  // screen
+  const screenGrad = ctx.createLinearGradient(x - w/2 + 3, y + 3, x + w/2 - 3, y + h - 6)
+  screenGrad.addColorStop(0, '#1a3a5c')
+  screenGrad.addColorStop(0.5, '#2a5a8c')
+  screenGrad.addColorStop(1, '#1a3a5c')
+  ctx.fillStyle = screenGrad
+  ctx.fillRect(x - w/2 + 3, y + 3, w - 6, h - 9)
+
+  // screen reflection
+  ctx.fillStyle = 'rgba(255,255,255,0.05)'
+  ctx.beginPath()
+  ctx.moveTo(x - w/2 + 3, y + 3)
+  ctx.lineTo(x + w/2 - 3, y + 3)
+  ctx.lineTo(x - w/2 + 3, y + h * 0.5)
+  ctx.closePath()
+  ctx.fill()
+
+  // brand dot
+  ctx.fillStyle = '#e74c3c'
+  ctx.beginPath()
+  ctx.arc(x, y + h - 4, 1.5, 0, Math.PI * 2)
+  ctx.fill()
+
+  // glow on wall behind
+  ctx.save()
+  const tvGlow = ctx.createRadialGradient(x, y + h/2, 5, x, y + h/2, w * 0.8)
+  tvGlow.addColorStop(0, 'rgba(40, 80, 140, 0.06)')
+  tvGlow.addColorStop(1, 'rgba(40, 80, 140, 0)')
+  ctx.fillStyle = tvGlow
+  ctx.fillRect(x - w, y - h * 0.3, w * 2, h * 1.6)
+  ctx.restore()
+}
+
+// ===== CURTAIN RENDERERS =====
+
+export function drawVelvetCurtain(ctx, x, y, w, h) {
+  ctx.save()
+  // rod
+  ctx.fillStyle = '#8B7355'
+  ctx.fillRect(x - w/2 - 5, y, w + 10, 4)
+  ctx.fillStyle = 'rgba(255,255,255,0.2)'
+  ctx.fillRect(x - w/2 - 5, y, w + 10, 1.5)
+  // rod ends
+  ctx.beginPath()
+  ctx.arc(x - w/2 - 5, y + 2, 4, 0, Math.PI * 2)
+  ctx.fillStyle = '#8B7355'
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(x + w/2 + 5, y + 2, 4, 0, Math.PI * 2)
+  ctx.fill()
+
+  // left drape
+  const drapeW = w * 0.35
+  for (let side = -1; side <= 1; side += 2) {
+    const dx = x + side * (w * 0.32)
+    const foldGrad = ctx.createLinearGradient(dx - drapeW/2, y, dx + drapeW/2, y)
+    foldGrad.addColorStop(0, '#6b1a1a')
+    foldGrad.addColorStop(0.3, '#8b2222')
+    foldGrad.addColorStop(0.5, '#a03030')
+    foldGrad.addColorStop(0.7, '#8b2222')
+    foldGrad.addColorStop(1, '#5a1515')
+    ctx.fillStyle = foldGrad
+
+    ctx.beginPath()
+    ctx.moveTo(dx - drapeW/2, y + 4)
+    ctx.quadraticCurveTo(dx - drapeW/2 + 2, y + h * 0.3, dx - drapeW/2 - 3, y + h * 0.9)
+    ctx.lineTo(dx + drapeW/2 + 3, y + h * 0.9)
+    ctx.quadraticCurveTo(dx + drapeW/2 - 2, y + h * 0.3, dx + drapeW/2, y + 4)
+    ctx.closePath()
+    ctx.fill()
+
+    // fold highlights
+    ctx.strokeStyle = 'rgba(255,200,200,0.1)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(dx, y + 6)
+    ctx.quadraticCurveTo(dx + 2, y + h * 0.4, dx - 1, y + h * 0.85)
+    ctx.stroke()
+  }
+
+  // tiebacks
+  ctx.fillStyle = '#DAA520'
+  ctx.beginPath()
+  ctx.ellipse(x - w * 0.32, y + h * 0.35, 4, 6, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.ellipse(x + w * 0.32, y + h * 0.35, 4, 6, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function drawSheerCurtain(ctx, x, y, w, h) {
+  ctx.save()
+  // rod
+  ctx.fillStyle = '#ccc'
+  ctx.fillRect(x - w/2 - 3, y, w + 6, 3)
+
+  ctx.globalAlpha = 0.35
+  // flowing sheer fabric
+  const folds = 6
+  for (let i = 0; i < folds; i++) {
+    const fx = x - w/2 + (w / folds) * i
+    const fw = w / folds + 3
+    const foldGrad = ctx.createLinearGradient(fx, y, fx + fw, y)
+    foldGrad.addColorStop(0, '#fff')
+    foldGrad.addColorStop(0.5, '#ffeedd')
+    foldGrad.addColorStop(1, '#fff')
+    ctx.fillStyle = foldGrad
+    ctx.beginPath()
+    ctx.moveTo(fx, y + 3)
+    ctx.quadraticCurveTo(fx + fw/2, y + h * 0.5, fx - 2, y + h * 0.95)
+    ctx.lineTo(fx + fw + 2, y + h * 0.95)
+    ctx.quadraticCurveTo(fx + fw/2, y + h * 0.5, fx + fw, y + 3)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+export function drawBambooBlinds(ctx, x, y, w, h) {
+  ctx.save()
+  // top bar
+  ctx.fillStyle = '#8B7355'
+  ctx.fillRect(x - w/2, y, w, 5)
+
+  // slats
+  const slats = 14
+  const slatH = (h - 8) / slats
+  for (let i = 0; i < slats; i++) {
+    const sy = y + 6 + i * slatH
+    const shade = 0.8 + Math.sin(i * 1.5) * 0.2
+    ctx.fillStyle = `rgb(${Math.floor(180 * shade)}, ${Math.floor(140 * shade)}, ${Math.floor(80 * shade)})`
+    ctx.fillRect(x - w/2 + 2, sy, w - 4, slatH - 1)
+    // highlight on each slat
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'
+    ctx.fillRect(x - w/2 + 2, sy, w - 4, 1)
+  }
+
+  // strings
+  ctx.strokeStyle = '#a08060'
+  ctx.lineWidth = 0.8
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.25, y + 5)
+  ctx.lineTo(x - w * 0.25, y + h)
+  ctx.moveTo(x + w * 0.25, y + 5)
+  ctx.lineTo(x + w * 0.25, y + h)
+  ctx.stroke()
+
+  ctx.restore()
+}
+
+// ===== WALL DECORATION RENDERERS =====
+
+export function drawWallClock(ctx, x, y, w, h) {
+  ctx.save()
+  const r = Math.min(w, h) * 0.45
+
+  // shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.2)'
+  ctx.shadowBlur = 6
+  ctx.shadowOffsetY = 2
+
+  // face
+  ctx.beginPath()
+  ctx.arc(x, y + h/2, r, 0, Math.PI * 2)
+  const faceGrad = ctx.createRadialGradient(x, y + h/2, 0, x, y + h/2, r)
+  faceGrad.addColorStop(0, '#fffff0')
+  faceGrad.addColorStop(1, '#f5f0e0')
+  ctx.fillStyle = faceGrad
+  ctx.fill()
+
+  // rim
+  ctx.strokeStyle = '#8B7355'
+  ctx.lineWidth = 3
+  ctx.stroke()
+
+  ctx.shadowBlur = 0
+  ctx.shadowOffsetY = 0
+
+  // hour marks
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 - Math.PI / 2
+    const innerR = r * 0.78
+    const outerR = r * 0.88
+    ctx.beginPath()
+    ctx.moveTo(x + Math.cos(angle) * innerR, y + h/2 + Math.sin(angle) * innerR)
+    ctx.lineTo(x + Math.cos(angle) * outerR, y + h/2 + Math.sin(angle) * outerR)
+    ctx.strokeStyle = '#333'
+    ctx.lineWidth = i % 3 === 0 ? 2 : 1
+    ctx.stroke()
+  }
+
+  // hands (use current time)
+  const now = new Date()
+  const hourAngle = ((now.getHours() % 12) / 12) * Math.PI * 2 - Math.PI / 2
+  const minAngle = (now.getMinutes() / 60) * Math.PI * 2 - Math.PI / 2
+
+  ctx.strokeStyle = '#333'
+  ctx.lineWidth = 2.5
+  ctx.beginPath()
+  ctx.moveTo(x, y + h/2)
+  ctx.lineTo(x + Math.cos(hourAngle) * r * 0.5, y + h/2 + Math.sin(hourAngle) * r * 0.5)
+  ctx.stroke()
+
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(x, y + h/2)
+  ctx.lineTo(x + Math.cos(minAngle) * r * 0.7, y + h/2 + Math.sin(minAngle) * r * 0.7)
+  ctx.stroke()
+
+  // center dot
+  ctx.beginPath()
+  ctx.arc(x, y + h/2, 3, 0, Math.PI * 2)
+  ctx.fillStyle = '#333'
+  ctx.fill()
+
+  ctx.restore()
+}
+
+export function drawWallShelf(ctx, x, y, w, h) {
+  ctx.save()
+  // brackets
+  ctx.fillStyle = '#5D3A1A'
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.3, y + h)
+  ctx.lineTo(x - w * 0.3, y + h - 12)
+  ctx.lineTo(x - w * 0.3 + 10, y + h)
+  ctx.closePath()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(x + w * 0.3, y + h)
+  ctx.lineTo(x + w * 0.3, y + h - 12)
+  ctx.lineTo(x + w * 0.3 - 10, y + h)
+  ctx.closePath()
+  ctx.fill()
+
+  // shelf board
+  ctx.fillStyle = '#6B4226'
+  ctx.fillRect(x - w/2, y + h - 5, w, 5)
+  ctx.fillStyle = 'rgba(255,255,255,0.15)'
+  ctx.fillRect(x - w/2, y + h - 5, w, 2)
+  // front edge depth
+  ctx.fillStyle = '#5D3A1A'
+  ctx.fillRect(x - w/2, y + h, w, 3)
+
+  // items on shelf
+  // vase
+  ctx.beginPath()
+  ctx.moveTo(x - w * 0.3, y + h - 5)
+  ctx.quadraticCurveTo(x - w * 0.3 - 4, y + h - 18, x - w * 0.3 - 2, y + h - 25)
+  ctx.lineTo(x - w * 0.3 + 2, y + h - 25)
+  ctx.quadraticCurveTo(x - w * 0.3 + 4, y + h - 18, x - w * 0.3, y + h - 5)
+  ctx.fillStyle = '#e8c99b'
+  ctx.fill()
+
+  // small plant
+  ctx.fillStyle = '#4CAF50'
+  ctx.beginPath()
+  ctx.arc(x, y + h - 14, 6, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = '#7B5230'
+  ctx.fillRect(x - 4, y + h - 9, 8, 5)
+
+  // cup
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(x + w * 0.2, y + h - 12, 8, 8)
+  ctx.fillStyle = '#3498db'
+  ctx.fillRect(x + w * 0.2 + 1, y + h - 11, 6, 3)
+
+  ctx.restore()
+}
+
+export function drawDecorMirror(ctx, x, y, w, h) {
+  ctx.save()
+  // shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.2)'
+  ctx.shadowBlur = 8
+  ctx.shadowOffsetY = 3
+
+  // ornate frame
+  ctx.beginPath()
+  ctx.ellipse(x, y + h/2, w/2 + 4, h/2 + 4, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#B8860B'
+  ctx.fill()
+
+  ctx.beginPath()
+  ctx.ellipse(x, y + h/2, w/2 + 2, h/2 + 2, 0, 0, Math.PI * 2)
+  ctx.fillStyle = '#DAA520'
+  ctx.fill()
+
+  ctx.restore()
+
+  // mirror surface
+  ctx.beginPath()
+  ctx.ellipse(x, y + h/2, w/2 - 2, h/2 - 2, 0, 0, Math.PI * 2)
+  const mirrorGrad = ctx.createLinearGradient(x - w/2, y, x + w/2, y + h)
+  mirrorGrad.addColorStop(0, '#e8eef5')
+  mirrorGrad.addColorStop(0.3, '#d0dae8')
+  mirrorGrad.addColorStop(0.7, '#c8d4e2')
+  mirrorGrad.addColorStop(1, '#e0e8f0')
+  ctx.fillStyle = mirrorGrad
+  ctx.fill()
+
+  // reflection highlight
+  ctx.beginPath()
+  ctx.ellipse(x - w * 0.15, y + h * 0.35, w * 0.15, h * 0.2, -0.3, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.fill()
+}
+
+export function drawHangingPlant(ctx, x, y, w, h) {
+  ctx.save()
+  // hook
+  ctx.strokeStyle = '#666'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.arc(x, y, 4, 0, Math.PI)
+  ctx.stroke()
+
+  // strings
+  ctx.strokeStyle = '#8B7355'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(x - 3, y + 3)
+  ctx.lineTo(x - 6, y + h * 0.3)
+  ctx.moveTo(x + 3, y + 3)
+  ctx.lineTo(x + 6, y + h * 0.3)
+  ctx.stroke()
+
+  // pot
+  const potY = y + h * 0.28
+  ctx.fillStyle = '#A0522D'
+  ctx.beginPath()
+  ctx.moveTo(x - 8, potY)
+  ctx.lineTo(x + 8, potY)
+  ctx.lineTo(x + 6, potY + 12)
+  ctx.lineTo(x - 6, potY + 12)
+  ctx.closePath()
+  ctx.fill()
+
+  // trailing vines
+  const vines = [
+    { sx: x - 4, len: h * 0.55 },
+    { sx: x + 3, len: h * 0.6 },
+    { sx: x - 1, len: h * 0.5 },
+    { sx: x + 6, len: h * 0.45 }
+  ]
+  for (const vine of vines) {
+    ctx.strokeStyle = '#388E3C'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(vine.sx, potY + 12)
+    ctx.quadraticCurveTo(vine.sx + Math.sin(vine.len) * 8, potY + vine.len * 0.5, vine.sx + Math.sin(vine.len * 2) * 5, potY + vine.len)
+    ctx.stroke()
+
+    // leaves on vine
+    for (let t = 0.3; t < 1; t += 0.25) {
+      const lx = vine.sx + Math.sin(vine.len * t * 2) * 4 * t
+      const ly = potY + 12 + vine.len * t
+      ctx.fillStyle = '#4CAF50'
+      ctx.beginPath()
+      ctx.ellipse(lx, ly, 4, 2.5, Math.sin(t) * 0.5, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  ctx.restore()
+}

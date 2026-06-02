@@ -91,43 +91,17 @@
         </div>
       </template>
 
-      <!-- 挂饰 Tab -->
-      <template v-if="activeTab === 'wall_art'">
+      <!-- Generic decoration tab (wall_art, plants, lighting, furniture, appliances, curtains) -->
+      <template v-if="genericCategories.includes(activeTab)">
         <div
-          v-for="item in wallArt"
+          v-for="item in getCategoryItems(activeTab)"
           :key="item.id"
           class="shop-item"
           :class="{ owned: isOwned(item.id) }"
           @click="handleDecorationAction(item)"
         >
-          <div class="item-icon-wrapper art-preview">
-            <span class="item-icon">🖼️</span>
-          </div>
-          <div class="item-info">
-            <span class="item-name">{{ item.name }}</span>
-            <span class="item-desc">{{ item.description }}</span>
-            <span class="item-bonus" v-if="item.bonus.type !== 'none'">
-              {{ getBonusLabel(item.bonus) }}
-            </span>
-          </div>
-          <div class="item-action">
-            <span v-if="isOwned(item.id)" class="owned-badge">已拥有</span>
-            <span v-else class="item-cost" :class="{ affordable: coins >= item.cost }">🪙 {{ item.cost }}</span>
-          </div>
-        </div>
-      </template>
-
-      <!-- 植物 Tab -->
-      <template v-if="activeTab === 'plants'">
-        <div
-          v-for="item in plants"
-          :key="item.id"
-          class="shop-item"
-          :class="{ owned: isOwned(item.id) }"
-          @click="handleDecorationAction(item)"
-        >
-          <div class="item-icon-wrapper plant-preview">
-            <span class="item-icon">🌿</span>
+          <div class="item-icon-wrapper" :class="getIconClass(activeTab)">
+            <span class="item-icon">{{ getTabIcon(activeTab) }}</span>
           </div>
           <div class="item-info">
             <span class="item-name">{{ item.name }}</span>
@@ -153,11 +127,26 @@
         <span class="tip-icon">💡</span>
         <span class="tip-text">购买后点击"使用"即可更换，装饰提供额外加成</span>
       </div>
-      <div class="tip-item" v-if="activeTab === 'wall_art' || activeTab === 'plants'">
+      <div class="tip-item" v-if="genericCategories.includes(activeTab)">
         <span class="tip-icon">💡</span>
         <span class="tip-text">购买后自动放置，进入编辑模式可拖动调整位置</span>
       </div>
     </div>
+
+    <!-- Purchase success animation overlay -->
+    <Transition name="purchase-anim">
+      <div v-if="purchaseAnim.show" class="purchase-overlay">
+        <div class="purchase-success-card">
+          <div class="success-icon">🎉</div>
+          <div class="success-text">购买成功!</div>
+          <div class="success-item-name">{{ purchaseAnim.itemName }}</div>
+          <div class="success-bonus" v-if="purchaseAnim.bonus">{{ purchaseAnim.bonus }}</div>
+          <div class="success-sparkles">
+            <span v-for="i in 6" :key="i" class="sparkle" :style="getSparkleStyle(i)">✨</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -188,15 +177,64 @@ const tabs = [
   { id: 'wallpaper', icon: '🎨', label: '墙纸' },
   { id: 'floor', icon: '🏠', label: '地板' },
   { id: 'wall_art', icon: '🖼️', label: '挂饰' },
+  { id: 'lighting', icon: '💡', label: '灯具' },
+  { id: 'curtains', icon: '🪟', label: '窗帘' },
+  { id: 'furniture', icon: '🪑', label: '家具' },
+  { id: 'appliances', icon: '📺', label: '电器' },
   { id: 'plants', icon: '🌿', label: '植物' },
 ]
 
+const genericCategories = ['wall_art', 'plants', 'lighting', 'furniture', 'appliances', 'curtains']
+
 const wallpapers = DECORATION_CATALOG.wallpapers
 const floors = DECORATION_CATALOG.floors
-const wallArt = DECORATION_CATALOG.wall_art
-const plants = DECORATION_CATALOG.plants
+
+function getCategoryItems(tabId) {
+  const mapping = {
+    wall_art: DECORATION_CATALOG.wall_art,
+    plants: DECORATION_CATALOG.plants,
+    lighting: DECORATION_CATALOG.lighting,
+    furniture: DECORATION_CATALOG.furniture,
+    appliances: DECORATION_CATALOG.appliances,
+    curtains: DECORATION_CATALOG.curtains,
+  }
+  return mapping[tabId] || []
+}
+
+function getTabIcon(tabId) {
+  const t = tabs.find(tab => tab.id === tabId)
+  return t ? t.icon : '🎁'
+}
+
+function getIconClass(tabId) {
+  const classes = {
+    wall_art: 'art-preview',
+    plants: 'plant-preview',
+    lighting: 'lighting-preview',
+    furniture: 'furniture-preview',
+    appliances: 'appliance-preview',
+    curtains: 'curtain-preview',
+  }
+  return classes[tabId] || ''
+}
 
 const seatCost = computed(() => 50 + (props.seatCount - 4) * 30)
+
+// Purchase animation state
+const purchaseAnim = ref({ show: false, itemName: '', bonus: '' })
+let purchaseTimer = null
+
+function showPurchaseSuccess(item) {
+  if (purchaseTimer) clearTimeout(purchaseTimer)
+  purchaseAnim.value = {
+    show: true,
+    itemName: item.name,
+    bonus: item.bonus.type !== 'none' ? getBonusLabel(item.bonus) : ''
+  }
+  purchaseTimer = setTimeout(() => {
+    purchaseAnim.value.show = false
+  }, 1800)
+}
 
 function isOwned(itemId) {
   return props.decorations.owned.includes(itemId)
@@ -222,6 +260,14 @@ function getWallpaperPreviewStyle(item) {
   return patterns[item.render.pattern] || ''
 }
 
+function getSparkleStyle(i) {
+  const angle = (i / 6) * 360
+  const dist = 40 + Math.random() * 20
+  const x = Math.cos(angle * Math.PI / 180) * dist
+  const y = Math.sin(angle * Math.PI / 180) * dist
+  return `transform: translate(${x}px, ${y}px); animation-delay: ${i * 0.1}s`
+}
+
 function handleBuySeat() {
   if (props.seatCount >= 8) return
   emit('buy-seat', seatCost.value)
@@ -233,9 +279,14 @@ function handleDecorationAction(item) {
       emit('equip-decoration', item)
     }
   } else {
+    if (props.coins >= item.cost) {
+      showPurchaseSuccess(item)
+    }
     emit('buy-decoration', item)
   }
 }
+
+defineExpose({ showPurchaseSuccess })
 </script>
 
 <style scoped>
@@ -244,6 +295,8 @@ function handleDecorationAction(item) {
   border-radius: 16px;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
 }
 
 .panel-title {
@@ -256,15 +309,15 @@ function handleDecorationAction(item) {
 
 .shop-tabs {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
 .shop-tab {
   flex: 1;
-  min-width: 48px;
-  padding: 6px 4px;
+  min-width: 42px;
+  padding: 5px 3px;
   border: 1.5px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
@@ -273,7 +326,7 @@ function handleDecorationAction(item) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .shop-tab:hover {
@@ -288,11 +341,11 @@ function handleDecorationAction(item) {
 }
 
 .tab-icon {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .tab-label {
-  font-size: 9px;
+  font-size: 8px;
   color: #bdc3c7;
   font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
@@ -377,6 +430,22 @@ function handleDecorationAction(item) {
 
 .item-icon-wrapper.plant-preview {
   background: linear-gradient(135deg, #c8e6c9, #81c784);
+}
+
+.item-icon-wrapper.lighting-preview {
+  background: linear-gradient(135deg, #fff9c4, #ffee58);
+}
+
+.item-icon-wrapper.furniture-preview {
+  background: linear-gradient(135deg, #d7ccc8, #a1887f);
+}
+
+.item-icon-wrapper.appliance-preview {
+  background: linear-gradient(135deg, #e0e0e0, #9e9e9e);
+}
+
+.item-icon-wrapper.curtain-preview {
+  background: linear-gradient(135deg, #f8bbd0, #ce93d8);
 }
 
 .item-icon {
@@ -520,5 +589,104 @@ function handleDecorationAction(item) {
 .tip-text {
   font-size: 9px;
   color: #7f8c8d;
+}
+
+/* Purchase success animation */
+.purchase-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.purchase-success-card {
+  background: linear-gradient(135deg, #2d3436, #636e72);
+  border: 2px solid rgba(241, 196, 15, 0.6);
+  border-radius: 16px;
+  padding: 20px 28px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(241, 196, 15, 0.2);
+  animation: card-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes card-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.success-icon {
+  font-size: 32px;
+  margin-bottom: 6px;
+  animation: bounce-in 0.5s ease;
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.success-text {
+  color: #f1c40f;
+  font-size: 16px;
+  font-weight: bold;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+  margin-bottom: 4px;
+}
+
+.success-item-name {
+  color: #ecf0f1;
+  font-size: 13px;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+}
+
+.success-bonus {
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.success-sparkles {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.sparkle {
+  position: absolute;
+  font-size: 14px;
+  animation: sparkle-float 1.2s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes sparkle-float {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  30% { opacity: 1; transform: translate(var(--tx, 20px), var(--ty, -20px)) scale(1.2); }
+  100% { opacity: 0; transform: translate(var(--tx, 20px), var(--ty, -20px)) scale(0.5); }
+}
+
+.purchase-anim-enter-active {
+  transition: opacity 0.2s ease;
+}
+.purchase-anim-leave-active {
+  transition: opacity 0.4s ease;
+}
+.purchase-anim-enter-from,
+.purchase-anim-leave-to {
+  opacity: 0;
 }
 </style>
