@@ -133,15 +133,34 @@
       </div>
     </div>
 
-    <!-- Purchase success animation overlay -->
+    <!-- Bonus summary -->
+    <div class="bonus-summary" v-if="totalTipBonus > 0 || totalPatienceBonus > 0">
+      <div class="bonus-summary-title">📊 装饰加成汇总</div>
+      <div class="bonus-summary-row">
+        <span class="bonus-label">💰 小费加成</span>
+        <span class="bonus-value tip">+{{ Math.round(totalTipBonus * 100) }}%</span>
+      </div>
+      <div class="bonus-summary-row">
+        <span class="bonus-label">⏳ 耐心加成</span>
+        <span class="bonus-value patience">+{{ Math.round(totalPatienceBonus * 100) }}%</span>
+      </div>
+      <div class="bonus-summary-detail" v-if="bonusDetails.length > 0">
+        <div class="bonus-detail-item" v-for="d in bonusDetails" :key="d.name">
+          <span class="detail-name">{{ d.name }}</span>
+          <span class="detail-value" :class="d.type">{{ d.text }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Purchase success/failure animation overlay -->
     <Transition name="purchase-anim">
       <div v-if="purchaseAnim.show" class="purchase-overlay">
-        <div class="purchase-success-card">
-          <div class="success-icon">🎉</div>
-          <div class="success-text">购买成功!</div>
+        <div class="purchase-success-card" :class="{ failed: purchaseAnim.failed }">
+          <div class="success-icon">{{ purchaseAnim.failed ? '😢' : '🎉' }}</div>
+          <div class="success-text">{{ purchaseAnim.failed ? '金币不足!' : '购买成功!' }}</div>
           <div class="success-item-name">{{ purchaseAnim.itemName }}</div>
-          <div class="success-bonus" v-if="purchaseAnim.bonus">{{ purchaseAnim.bonus }}</div>
-          <div class="success-sparkles">
+          <div class="success-bonus" :class="{ 'failed-info': purchaseAnim.failed }" v-if="purchaseAnim.bonus">{{ purchaseAnim.bonus }}</div>
+          <div class="success-sparkles" v-if="!purchaseAnim.failed">
             <span v-for="i in 6" :key="i" class="sparkle" :style="getSparkleStyle(i)">✨</span>
           </div>
         </div>
@@ -152,7 +171,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { DECORATION_CATALOG } from '../game/decorations.js'
+import { DECORATION_CATALOG, findItemById } from '../game/decorations.js'
 
 const props = defineProps({
   coins: { type: Number, default: 0 },
@@ -220,8 +239,54 @@ function getIconClass(tabId) {
 
 const seatCost = computed(() => 50 + (props.seatCount - 4) * 30)
 
+// Bonus summary computations
+const totalTipBonus = computed(() => {
+  let total = 0
+  const wp = findItemById(props.decorations.activeWallpaper)
+  if (wp && wp.bonus.type === 'tip_multiplier') total += wp.bonus.value
+  const fl = findItemById(props.decorations.activeFloor)
+  if (fl && fl.bonus.type === 'tip_multiplier') total += fl.bonus.value
+  for (const placed of props.decorations.placed) {
+    const item = findItemById(placed.id)
+    if (item && item.bonus.type === 'tip_multiplier') total += item.bonus.value
+  }
+  return Math.min(total, 0.5)
+})
+
+const totalPatienceBonus = computed(() => {
+  let total = 0
+  const wp = findItemById(props.decorations.activeWallpaper)
+  if (wp && wp.bonus.type === 'patience_boost') total += wp.bonus.value
+  const fl = findItemById(props.decorations.activeFloor)
+  if (fl && fl.bonus.type === 'patience_boost') total += fl.bonus.value
+  for (const placed of props.decorations.placed) {
+    const item = findItemById(placed.id)
+    if (item && item.bonus.type === 'patience_boost') total += item.bonus.value
+  }
+  return Math.min(total, 0.5)
+})
+
+const bonusDetails = computed(() => {
+  const details = []
+  const wp = findItemById(props.decorations.activeWallpaper)
+  if (wp && wp.bonus.type !== 'none') {
+    details.push({ name: wp.name, type: wp.bonus.type === 'tip_multiplier' ? 'tip' : 'patience', text: getBonusLabel(wp.bonus) })
+  }
+  const fl = findItemById(props.decorations.activeFloor)
+  if (fl && fl.bonus.type !== 'none') {
+    details.push({ name: fl.name, type: fl.bonus.type === 'tip_multiplier' ? 'tip' : 'patience', text: getBonusLabel(fl.bonus) })
+  }
+  for (const placed of props.decorations.placed) {
+    const item = findItemById(placed.id)
+    if (item && item.bonus.type !== 'none') {
+      details.push({ name: item.name, type: item.bonus.type === 'tip_multiplier' ? 'tip' : 'patience', text: getBonusLabel(item.bonus) })
+    }
+  }
+  return details
+})
+
 // Purchase animation state
-const purchaseAnim = ref({ show: false, itemName: '', bonus: '' })
+const purchaseAnim = ref({ show: false, itemName: '', bonus: '', failed: false })
 let purchaseTimer = null
 
 function showPurchaseSuccess(item) {
@@ -229,7 +294,8 @@ function showPurchaseSuccess(item) {
   purchaseAnim.value = {
     show: true,
     itemName: item.name,
-    bonus: item.bonus.type !== 'none' ? getBonusLabel(item.bonus) : ''
+    bonus: item.bonus.type !== 'none' ? getBonusLabel(item.bonus) : '',
+    failed: false
   }
   purchaseTimer = setTimeout(() => {
     purchaseAnim.value.show = false
@@ -281,9 +347,24 @@ function handleDecorationAction(item) {
   } else {
     if (props.coins >= item.cost) {
       showPurchaseSuccess(item)
+    } else {
+      showPurchaseFailure(item)
     }
     emit('buy-decoration', item)
   }
+}
+
+function showPurchaseFailure(item) {
+  if (purchaseTimer) clearTimeout(purchaseTimer)
+  purchaseAnim.value = {
+    show: true,
+    itemName: item.name,
+    bonus: `还差 ${item.cost - props.coins} 金币`,
+    failed: true
+  }
+  purchaseTimer = setTimeout(() => {
+    purchaseAnim.value.show = false
+  }, 1500)
 }
 
 defineExpose({ showPurchaseSuccess })
@@ -591,6 +672,82 @@ defineExpose({ showPurchaseSuccess })
   color: #7f8c8d;
 }
 
+/* Bonus summary */
+.bonus-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.05), rgba(46, 204, 113, 0.05));
+  border: 1px solid rgba(241, 196, 15, 0.15);
+}
+
+.bonus-summary-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ecf0f1;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+  margin-bottom: 8px;
+}
+
+.bonus-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.bonus-label {
+  font-size: 10px;
+  color: #bdc3c7;
+}
+
+.bonus-value {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+}
+
+.bonus-value.tip {
+  color: #f1c40f;
+}
+
+.bonus-value.patience {
+  color: #2ecc71;
+}
+
+.bonus-summary-detail {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bonus-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-name {
+  font-size: 9px;
+  color: #7f8c8d;
+}
+
+.detail-value {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.detail-value.tip {
+  color: #f39c12;
+}
+
+.detail-value.patience {
+  color: #27ae60;
+}
+
 /* Purchase success animation */
 .purchase-overlay {
   position: absolute;
@@ -613,6 +770,29 @@ defineExpose({ showPurchaseSuccess })
   position: relative;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(241, 196, 15, 0.2);
   animation: card-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.purchase-success-card.failed {
+  border-color: rgba(231, 76, 60, 0.6);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(231, 76, 60, 0.2);
+  animation: card-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), shake 0.4s ease 0.3s;
+}
+
+.purchase-success-card.failed .success-text {
+  color: #e74c3c;
+}
+
+.failed-info {
+  background: rgba(231, 76, 60, 0.15) !important;
+  color: #e74c3c !important;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
 }
 
 @keyframes card-pop {

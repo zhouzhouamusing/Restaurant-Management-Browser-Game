@@ -422,25 +422,31 @@ function buySeat(cost) {
 
 function buyDecoration(item) {
   if (gameState.coins < item.cost) {
-    showToast('❌', '金币不足！', 'error')
+    showToast('💸', `金币不足！需要 ${item.cost} 金币，还差 ${item.cost - gameState.coins} 金币`, 'error')
     return
   }
   gameState.coins -= item.cost
   gameState.decorations.owned.push(item.id)
 
+  const bonusText = item.bonus.type === 'tip_multiplier'
+    ? ` (小费+${Math.round(item.bonus.value * 100)}%)`
+    : item.bonus.type === 'patience_boost'
+      ? ` (耐心+${Math.round(item.bonus.value * 100)}%)`
+      : ''
+
   if (item.category === 'wallpaper') {
     gameState.decorations.activeWallpaper = item.id
-    showToast('🎨', `已购买并使用「${item.name}」`, 'success')
+    showToast('🎨', `已购买并使用「${item.name}」${bonusText}`, 'success')
   } else if (item.category === 'floor') {
     gameState.decorations.activeFloor = item.id
-    showToast('🏠', `已购买并使用「${item.name}」`, 'success')
+    showToast('🏠', `已购买并使用「${item.name}」${bonusText}`, 'success')
   } else {
     gameState.decorations.placed.push({
       id: item.id,
       x: item.defaultPos?.x || 0.5,
       y: item.defaultPos?.y || 0.5
     })
-    showToast('✨', `已购买「${item.name}」并放置到餐厅`, 'success')
+    showToast('🎉', `已购买「${item.name}」${bonusText}`, 'success')
   }
 }
 

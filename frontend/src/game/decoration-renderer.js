@@ -6,18 +6,41 @@
 
 export function drawCreamWall(ctx, w, h, wallH) {
   const grad = ctx.createLinearGradient(0, 0, 0, wallH)
-  grad.addColorStop(0, '#fff8e7')
-  grad.addColorStop(0.5, '#fff5e0')
-  grad.addColorStop(1, '#fff3d4')
+  grad.addColorStop(0, '#fff9ea')
+  grad.addColorStop(0.3, '#fff6e3')
+  grad.addColorStop(0.7, '#fff4db')
+  grad.addColorStop(1, '#fff1d0')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, w, wallH)
 
-  // ceiling shadow
-  const ceilShadow = ctx.createLinearGradient(0, 0, 0, 20)
-  ceilShadow.addColorStop(0, 'rgba(0,0,0,0.06)')
+  // subtle vertical side shadows for wall recess effect
+  const leftWallShadow = ctx.createLinearGradient(0, 0, 60, 0)
+  leftWallShadow.addColorStop(0, 'rgba(180, 150, 100, 0.06)')
+  leftWallShadow.addColorStop(1, 'rgba(180, 150, 100, 0)')
+  ctx.fillStyle = leftWallShadow
+  ctx.fillRect(0, 0, 60, wallH)
+
+  const rightWallShadow = ctx.createLinearGradient(w, 0, w - 60, 0)
+  rightWallShadow.addColorStop(0, 'rgba(180, 150, 100, 0.06)')
+  rightWallShadow.addColorStop(1, 'rgba(180, 150, 100, 0)')
+  ctx.fillStyle = rightWallShadow
+  ctx.fillRect(w - 60, 0, 60, wallH)
+
+  // ceiling shadow with deeper profile
+  const ceilShadow = ctx.createLinearGradient(0, 0, 0, 30)
+  ceilShadow.addColorStop(0, 'rgba(0,0,0,0.08)')
+  ceilShadow.addColorStop(0.5, 'rgba(0,0,0,0.03)')
   ceilShadow.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = ceilShadow
-  ctx.fillRect(0, 0, w, 20)
+  ctx.fillRect(0, 0, w, 30)
+
+  // subtle plaster texture (faint horizontal bands)
+  ctx.globalAlpha = 0.015
+  for (let y = 20; y < wallH; y += 35) {
+    ctx.fillStyle = y % 70 === 0 ? '#c0a070' : '#e0d0b0'
+    ctx.fillRect(0, y, w, 1)
+  }
+  ctx.globalAlpha = 1
 }
 
 export function drawBrickWall(ctx, w, h, wallH) {
@@ -196,6 +219,16 @@ export function drawWoodFloor(ctx, w, floorY, floorH) {
   topShadow.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = topShadow
   ctx.fillRect(0, floorY, w, 15)
+
+  // reflective wax shine on floor surface
+  const shineGrad = ctx.createLinearGradient(w * 0.3, floorY, w * 0.7, floorY + floorH)
+  shineGrad.addColorStop(0, 'rgba(255,255,255,0)')
+  shineGrad.addColorStop(0.3, 'rgba(255,255,255,0.03)')
+  shineGrad.addColorStop(0.5, 'rgba(255,255,255,0.05)')
+  shineGrad.addColorStop(0.7, 'rgba(255,255,255,0.02)')
+  shineGrad.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = shineGrad
+  ctx.fillRect(0, floorY, w, floorH)
 }
 
 export function drawCheckerFloor(ctx, w, floorY, floorH) {
@@ -859,10 +892,19 @@ export function draw3DTable(ctx, x, y, tableStyle, isOccupied, tableIndex) {
   }
   ctx.restore()
 
-  // top highlight
+  // top highlight - reflective gloss
   ctx.beginPath()
   ctx.roundRect(x - tableW / 2 + 4, y - 2 - depth + 2, tableW - 8, 6, 3)
   ctx.fillStyle = c.highlight
+  ctx.fill()
+
+  // specular highlight dot on surface
+  const specGrad = ctx.createRadialGradient(x - 10, y - depth + 2, 0, x - 10, y - depth + 2, 12)
+  specGrad.addColorStop(0, 'rgba(255,255,255,0.12)')
+  specGrad.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = specGrad
+  ctx.beginPath()
+  ctx.arc(x - 10, y - depth + 2, 12, 0, Math.PI * 2)
   ctx.fill()
 
   // side edge (right)
@@ -950,69 +992,179 @@ export function drawVignette(ctx, w, h) {
 }
 
 export function drawBaseboard(ctx, w, floorY) {
-  // baseboard with 3D molding
-  const boardH = 8
-  ctx.fillStyle = '#8B5E3C'
+  // baseboard with 3D molding profile
+  const boardH = 10
+  // main body
+  ctx.fillStyle = '#7B4E2C'
   ctx.fillRect(0, floorY - boardH, w, boardH)
-
-  // top highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.2)'
-  ctx.fillRect(0, floorY - boardH, w, 2)
-
-  // bottom shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.15)'
-  ctx.fillRect(0, floorY - 1, w, 2)
+  // top beveled edge highlight
+  ctx.fillStyle = '#A0703C'
+  ctx.fillRect(0, floorY - boardH, w, 3)
+  ctx.fillStyle = 'rgba(255,255,255,0.25)'
+  ctx.fillRect(0, floorY - boardH, w, 1)
+  // middle groove
+  ctx.fillStyle = 'rgba(0,0,0,0.1)'
+  ctx.fillRect(0, floorY - boardH + 4, w, 1)
+  // bottom shadow cast onto floor
+  const floorShadow = ctx.createLinearGradient(0, floorY, 0, floorY + 6)
+  floorShadow.addColorStop(0, 'rgba(0,0,0,0.12)')
+  floorShadow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = floorShadow
+  ctx.fillRect(0, floorY, w, 6)
 }
 
 // ===== CEILING & AMBIENT LIGHTING =====
 
 export function drawCeilingMolding(ctx, w) {
-  // crown molding with 3D profile
+  // crown molding with detailed 3D profile
+  ctx.save()
+  // top highlight
+  ctx.fillStyle = '#f5efe5'
+  ctx.fillRect(0, 0, w, 3)
+  // main body
   ctx.fillStyle = '#e8ddd0'
-  ctx.fillRect(0, 0, w, 6)
-  ctx.fillStyle = 'rgba(255,255,255,0.4)'
-  ctx.fillRect(0, 0, w, 2)
+  ctx.fillRect(0, 3, w, 5)
+  // inner ridge
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'
+  ctx.fillRect(0, 3, w, 1)
+  // bottom ledge
   ctx.fillStyle = '#d4c8b8'
-  ctx.fillRect(0, 6, w, 3)
-  ctx.fillStyle = 'rgba(0,0,0,0.08)'
-  ctx.fillRect(0, 9, w, 2)
+  ctx.fillRect(0, 8, w, 4)
+  // shadow under molding
+  const shadow = ctx.createLinearGradient(0, 12, 0, 22)
+  shadow.addColorStop(0, 'rgba(0,0,0,0.10)')
+  shadow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = shadow
+  ctx.fillRect(0, 12, w, 10)
+  ctx.restore()
 }
 
 export function drawAmbientLighting(ctx, w, h, placedDecorations) {
+  ctx.save()
+
   // global warm ambient from ceiling
-  const ambGrad = ctx.createLinearGradient(0, 0, 0, h * 0.5)
-  ambGrad.addColorStop(0, 'rgba(255, 240, 200, 0.04)')
+  const ambGrad = ctx.createLinearGradient(0, 0, 0, h * 0.55)
+  ambGrad.addColorStop(0, 'rgba(255, 245, 210, 0.06)')
+  ambGrad.addColorStop(0.4, 'rgba(255, 240, 200, 0.03)')
   ambGrad.addColorStop(1, 'rgba(255, 240, 200, 0)')
   ctx.fillStyle = ambGrad
-  ctx.fillRect(0, 0, w, h * 0.5)
+  ctx.fillRect(0, 0, w, h * 0.55)
 
   // ambient occlusion at wall-floor junction
-  const aoGrad = ctx.createLinearGradient(0, h * 0.35 - 5, 0, h * 0.35 + 20)
+  const aoGrad = ctx.createLinearGradient(0, h * 0.35 - 8, 0, h * 0.35 + 25)
   aoGrad.addColorStop(0, 'rgba(0,0,0,0)')
-  aoGrad.addColorStop(0.3, 'rgba(0,0,0,0.06)')
+  aoGrad.addColorStop(0.3, 'rgba(0,0,0,0.08)')
+  aoGrad.addColorStop(0.7, 'rgba(0,0,0,0.04)')
   aoGrad.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = aoGrad
-  ctx.fillRect(0, h * 0.35 - 5, w, 25)
+  ctx.fillRect(0, h * 0.35 - 8, w, 33)
 
-  // corner shadows (left and right wall edges)
-  const leftShadow = ctx.createLinearGradient(0, 0, 30, 0)
-  leftShadow.addColorStop(0, 'rgba(0,0,0,0.06)')
+  // corner shadows (left and right wall edges - deeper)
+  const leftShadow = ctx.createLinearGradient(0, 0, 45, 0)
+  leftShadow.addColorStop(0, 'rgba(0,0,0,0.09)')
   leftShadow.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = leftShadow
-  ctx.fillRect(0, 0, 30, h * 0.35)
+  ctx.fillRect(0, 0, 45, h * 0.35)
 
-  const rightShadow = ctx.createLinearGradient(w, 0, w - 30, 0)
-  rightShadow.addColorStop(0, 'rgba(0,0,0,0.06)')
+  const rightShadow = ctx.createLinearGradient(w, 0, w - 45, 0)
+  rightShadow.addColorStop(0, 'rgba(0,0,0,0.09)')
   rightShadow.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = rightShadow
-  ctx.fillRect(w - 30, 0, 30, h * 0.35)
+  ctx.fillRect(w - 45, 0, 45, h * 0.35)
+
+  // floor depth gradient - darker toward back
+  const floorDepth = ctx.createLinearGradient(0, h * 0.35, 0, h * 0.65)
+  floorDepth.addColorStop(0, 'rgba(0,0,0,0.05)')
+  floorDepth.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = floorDepth
+  ctx.fillRect(0, h * 0.35, w, h * 0.3)
 
   // floor ambient occlusion near counter
-  const floorAO = ctx.createLinearGradient(0, h - 80, 0, h - 70)
+  const floorAO = ctx.createLinearGradient(0, h - 85, 0, h - 70)
   floorAO.addColorStop(0, 'rgba(0,0,0,0)')
-  floorAO.addColorStop(1, 'rgba(0,0,0,0.08)')
+  floorAO.addColorStop(1, 'rgba(0,0,0,0.10)')
   ctx.fillStyle = floorAO
-  ctx.fillRect(0, h - 80, w, 10)
+  ctx.fillRect(0, h - 85, w, 15)
+
+  // Light cones from placed lighting decorations
+  if (placedDecorations && placedDecorations.length > 0) {
+    for (const placed of placedDecorations) {
+      if (!placed.id || !placed.id.startsWith('light_')) continue
+      const px = placed.x * w
+      const py = placed.y * h
+      _drawLightCone(ctx, px, py, w, h, placed.id)
+    }
+  }
+
+  ctx.restore()
+}
+
+function _drawLightCone(ctx, x, y, canvasW, canvasH, lightId) {
+  ctx.save()
+  if (lightId === 'light_chandelier' || lightId === 'light_pendant') {
+    // Downward cone of warm light
+    const coneH = canvasH * 0.45
+    const coneW = 120
+    const grad = ctx.createRadialGradient(x, y + 40, 5, x, y + coneH * 0.5, coneW)
+    grad.addColorStop(0, 'rgba(255, 230, 150, 0.12)')
+    grad.addColorStop(0.5, 'rgba(255, 220, 130, 0.06)')
+    grad.addColorStop(1, 'rgba(255, 220, 130, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.moveTo(x - 8, y + 40)
+    ctx.lineTo(x - coneW, y + coneH)
+    ctx.lineTo(x + coneW, y + coneH)
+    ctx.lineTo(x + 8, y + 40)
+    ctx.closePath()
+    ctx.fill()
+    // Floor pool of light
+    const poolGrad = ctx.createRadialGradient(x, canvasH * 0.7, 0, x, canvasH * 0.7, coneW * 0.8)
+    poolGrad.addColorStop(0, 'rgba(255, 240, 180, 0.08)')
+    poolGrad.addColorStop(1, 'rgba(255, 240, 180, 0)')
+    ctx.fillStyle = poolGrad
+    ctx.fillRect(x - coneW, canvasH * 0.55, coneW * 2, canvasH * 0.3)
+  } else if (lightId === 'light_wall_sconce') {
+    // Wall sconce radial glow
+    const grad = ctx.createRadialGradient(x, y, 5, x, y, 50)
+    grad.addColorStop(0, 'rgba(255, 220, 150, 0.15)')
+    grad.addColorStop(0.6, 'rgba(255, 200, 100, 0.05)')
+    grad.addColorStop(1, 'rgba(255, 200, 100, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(x, y, 50, 0, Math.PI * 2)
+    ctx.fill()
+  } else if (lightId === 'light_floor_lamp') {
+    // Upward and outward glow
+    const grad = ctx.createRadialGradient(x, y - 20, 5, x, y - 20, 70)
+    grad.addColorStop(0, 'rgba(255, 235, 170, 0.12)')
+    grad.addColorStop(0.5, 'rgba(255, 230, 150, 0.05)')
+    grad.addColorStop(1, 'rgba(255, 230, 150, 0)')
+    ctx.fillStyle = grad
+    ctx.beginPath()
+    ctx.arc(x, y - 20, 70, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  ctx.restore()
+}
+
+export function drawDecorationShadow(ctx, x, y, itemW, itemH, isFloorItem) {
+  ctx.save()
+  if (isFloorItem) {
+    // Elliptical ground shadow
+    ctx.beginPath()
+    ctx.ellipse(x, y + itemH * 0.4, itemW * 0.4, 6, 0, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)'
+    ctx.fill()
+  } else {
+    // Wall-mounted drop shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.2)'
+    ctx.shadowBlur = 8
+    ctx.shadowOffsetX = 3
+    ctx.shadowOffsetY = 4
+    ctx.fillStyle = 'rgba(0,0,0,0)'
+    ctx.fillRect(x - itemW / 2, y - itemH / 2, itemW, itemH)
+  }
+  ctx.restore()
 }
 
 // ===== LIGHTING RENDERERS =====

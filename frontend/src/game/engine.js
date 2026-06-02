@@ -12,7 +12,7 @@ import {
   drawAirConditioner, drawWaterDispenser, drawSpeaker, drawTV,
   drawVelvetCurtain, drawSheerCurtain, drawBambooBlinds,
   draw3DTable, drawWindowLightShaft, drawVignette, drawBaseboard,
-  drawCeilingMolding, drawAmbientLighting
+  drawCeilingMolding, drawAmbientLighting, drawDecorationShadow
 } from "./decoration-renderer.js";
 import { findItemById } from "./decorations.js";
 
@@ -124,12 +124,12 @@ export class GameEngine {
       } else if (this.dragTarget.type === 'decoration') {
         const placed = this.decorationState.placed[this.dragTarget.index];
         const item = findItemById(placed.id);
-        const isWallItem = item && (item.category === 'wall_art' || item.category === 'lighting' || item.category === 'curtains' || item.category === 'appliances');
+        const isWallItem = item && item.defaultPos && item.defaultPos.y < 0.33;
         placed.x = Math.max(0.03, Math.min(0.97, newX));
         if (isWallItem) {
-          placed.y = Math.max(0.02, Math.min(0.32, newY));
+          placed.y = Math.max(0.02, Math.min(0.33, newY));
         } else {
-          placed.y = Math.max(0.35, Math.min(0.85, newY));
+          placed.y = Math.max(0.33, Math.min(0.88, newY));
         }
       }
       this.canvas.style.cursor = "grabbing";
@@ -701,6 +701,9 @@ export class GameEngine {
       const dh = item.render.height || 40;
 
       ctx.save();
+      // Draw shadow under decoration for depth
+      const isFloorItem = item.defaultPos && item.defaultPos.y >= 0.33;
+      drawDecorationShadow(ctx, px, py, dw, dh, isFloorItem);
       drawFn(ctx, px, py, dw, dh);
 
       // Edit mode highlight
