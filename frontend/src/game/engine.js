@@ -482,8 +482,8 @@ export class GameEngine {
         ctx.stroke()
       }
 
-      // "Being served" indicator
-      if (c._beingServedBy && c._beingServedBy.busy) {
+      // "Being served" indicator - only show when staff has arrived
+      if (c._beingServedBy && c._beingServedBy.busy && !c._beingServedBy.moving) {
         this._drawServingIndicator(ctx, c, c.x, y)
       }
 
@@ -688,6 +688,7 @@ export class GameEngine {
   _drawStaffCharacters(ctx) {
     for (const s of this.staff) {
       ctx.save()
+      ctx.globalAlpha = 1
 
       const isMoving = s.moving || s.returning
       const walkBob = isMoving ? Math.sin(s.walkFrame * 0.15) * 3 : Math.sin(s.animPhase) * 1.5
@@ -727,7 +728,7 @@ export class GameEngine {
       // Level badge
       ctx.beginPath()
       ctx.roundRect(sx + 10, sy - 22, 22, 14, 7)
-      ctx.fillStyle = s.type === 'waiter' ? 'rgba(52,152,219,0.85)' : 'rgba(155,89,182,0.85)'
+      ctx.fillStyle = s.type === 'waiter' ? '#2980b9' : '#8e44ad'
       ctx.fill()
       ctx.font = `bold 8px ${FONT}`
       ctx.textAlign = 'center'
@@ -737,7 +738,7 @@ export class GameEngine {
       // Name tag
       if (!isMoving) {
         ctx.font = `9px ${FONT}`
-        ctx.fillStyle = 'rgba(60,60,60,0.8)'
+        ctx.fillStyle = '#4a4a4a'
         ctx.textAlign = 'center'
         ctx.fillText(s.name, sx, sy + 16)
       }
