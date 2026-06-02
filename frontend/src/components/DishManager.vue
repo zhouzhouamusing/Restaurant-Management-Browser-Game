@@ -2,26 +2,29 @@
   <div class="dish-manager">
     <h3 class="panel-title">🍽️ 菜品管理</h3>
 
-    <!-- 已解锁菜品 -->
+    <!-- Unlocked dishes -->
     <div class="section-label">✅ 已上架</div>
     <div class="dish-list">
-      <div
-        v-for="dish in dishes"
-        :key="dish.id"
-        class="dish-card active"
-      >
-        <span class="dish-emoji">{{ dish.emoji || '🍲' }}</span>
-        <div class="dish-detail">
-          <span class="dish-name">{{ dish.name }}</span>
-          <div class="dish-stats">
-            <span class="stat price">💰{{ dish.price }}</span>
-            <span class="stat time">⏱️{{ dish.cookTime }}s</span>
+      <TransitionGroup name="dish">
+        <div
+          v-for="dish in dishes"
+          :key="dish.id"
+          class="dish-card active"
+        >
+          <span class="dish-emoji">{{ dish.emoji || '🍲' }}</span>
+          <div class="dish-detail">
+            <span class="dish-name">{{ dish.name }}</span>
+            <div class="dish-stats">
+              <span class="stat price">💰{{ dish.price }}</span>
+              <span class="stat time">⏱️{{ dish.cookTime }}s</span>
+            </div>
           </div>
+          <div class="active-indicator"></div>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
 
-    <!-- 可解锁菜品 -->
+    <!-- Locked dishes -->
     <div class="section-label" v-if="lockedDishes.length > 0">🔒 待解锁</div>
     <div class="dish-list">
       <div
@@ -31,7 +34,7 @@
         :class="{ affordable: coins >= dish.unlockCost }"
         @click="$emit('unlock-dish', dish)"
       >
-        <span class="dish-emoji">{{ dish.emoji }}</span>
+        <span class="dish-emoji locked-emoji">{{ dish.emoji }}</span>
         <div class="dish-detail">
           <span class="dish-name">{{ dish.name }}</span>
           <div class="dish-stats">
@@ -40,7 +43,8 @@
           </div>
         </div>
         <div class="unlock-badge" v-if="coins >= dish.unlockCost">
-          解锁
+          <span class="unlock-icon">🔓</span>
+          <span>解锁</span>
         </div>
       </div>
     </div>
@@ -75,25 +79,14 @@ const lockedDishes = computed(() => {
 .dish-manager {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 16px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.dish-manager::-webkit-scrollbar {
-  width: 3px;
-}
-.dish-manager::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.12);
-  border-radius: 2px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .panel-title {
   color: #f1c40f;
   font-size: 15px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   text-align: center;
   font-family: 'Comic Sans MS', cursive;
 }
@@ -101,7 +94,7 @@ const lockedDishes = computed(() => {
 .section-label {
   color: #bdc3c7;
   font-size: 11px;
-  margin: 10px 0 6px 4px;
+  margin: 12px 0 8px 4px;
   font-weight: 600;
 }
 
@@ -116,41 +109,72 @@ const lockedDishes = computed(() => {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 12px;
-  transition: all 0.2s;
+  border-radius: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  overflow: hidden;
 }
 
 .dish-card.active {
-  background: linear-gradient(135deg, rgba(46, 204, 113, 0.1) 0%, rgba(39, 174, 96, 0.06) 100%);
-  border: 1px solid rgba(46, 204, 113, 0.2);
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.08) 0%, rgba(39, 174, 96, 0.04) 100%);
+  border: 1px solid rgba(46, 204, 113, 0.18);
+}
+
+.dish-card.active:hover {
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.12) 0%, rgba(39, 174, 96, 0.08) 100%);
+}
+
+.active-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.6);
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
 }
 
 .dish-card.locked {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1.5px dashed rgba(255, 255, 255, 0.1);
   cursor: pointer;
 }
 
 .dish-card.locked:hover {
-  background: rgba(241, 196, 15, 0.08);
+  background: rgba(241, 196, 15, 0.06);
   border-color: rgba(241, 196, 15, 0.3);
+  transform: translateX(3px);
 }
 
 .dish-card.locked.affordable {
-  border-color: rgba(46, 204, 113, 0.4);
-  background: rgba(46, 204, 113, 0.06);
+  border-color: rgba(46, 204, 113, 0.35);
+  background: rgba(46, 204, 113, 0.05);
 }
 
 .dish-card.locked.affordable:hover {
-  transform: scale(1.02);
-  background: rgba(46, 204, 113, 0.12);
+  transform: translateX(4px) scale(1.01);
+  background: rgba(46, 204, 113, 0.1);
+  box-shadow: 0 2px 10px rgba(46, 204, 113, 0.15);
 }
 
 .dish-emoji {
-  font-size: 24px;
-  min-width: 30px;
+  font-size: 26px;
+  min-width: 32px;
   text-align: center;
+  transition: transform 0.3s;
+}
+
+.dish-card:hover .dish-emoji {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+.locked-emoji {
+  opacity: 0.6;
+  filter: grayscale(30%);
 }
 
 .dish-detail {
@@ -187,15 +211,35 @@ const lockedDishes = computed(() => {
 }
 
 .unlock-badge {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 3px;
   background: linear-gradient(135deg, #27ae60, #2ecc71);
   color: white;
   font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: 10px;
   font-weight: 600;
+  box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3);
+  animation: badgePulse 2s ease infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 2px 6px rgba(39, 174, 96, 0.3); }
+  50% { box-shadow: 0 2px 12px rgba(39, 174, 96, 0.5); }
+}
+
+.unlock-icon {
+  font-size: 11px;
+}
+
+/* Transition */
+.dish-enter-active {
+  animation: dishIn 0.4s ease;
+}
+
+@keyframes dishIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 </style>
