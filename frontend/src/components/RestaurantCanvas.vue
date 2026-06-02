@@ -1,30 +1,30 @@
 <template>
   <div class="canvas-container" ref="containerRef">
     <canvas ref="canvasRef"></canvas>
-    <!-- 顾客数量指示 -->
-    <div class="customer-count">
-      <span>🧑‍🤝‍🧑</span>
-      <span>{{ customerCount }}/{{ maxSeats }}</span>
+    <div class="canvas-overlay-info">
+      <span class="seat-info">🪑 {{ occupiedSeats }}/{{ seatCount }}</span>
+      <span class="tip">💡 点击顾客互动</span>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { GameEngine } from '../game/engine.js'
 
 const props = defineProps({
-  dishes: { type: Array, default: () => [] }
+  dishes: { type: Array, default: () => [] },
+  seatCount: { type: Number, default: 4 }
 })
 
-const emit = defineEmits(['earn-coins', 'serve-customer'])
+const emit = defineEmits(['customer-click', 'earn-coins', 'serve-customer'])
 
 const containerRef = ref(null)
 const canvasRef = ref(null)
-const customerCount = ref(0)
-const maxSeats = ref(6)
+const occupiedSeats = ref(0)
 let engine = null
 let resizeObserver = null
+let updateInterval = null
 
 onMounted(() => {
   const canvas = canvasRef.value
@@ -39,18 +39,19 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(resize)
   resizeObserver.observe(container)
 
-  engine = new GameEngine(
-    canvas,
-    props.dishes,
-    (amount) => emit('earn-coins', amount),
-    () => emit('serve-customer')
-  )
+  engine = new GameEngine(canvas, {
+    dishes: props.dishes,
+    onCustomerClick: (customer) => emit('customer-click', customer),
+    onEarnCoins: (amount) => emit('earn-coins', amount),
+    onServeCustomer: () => emit('serve-customer')
+  })
   engine.start()
 
-  // 定时更新顾客数量显示
-  setInterval(() => {
+  updateInterval = setInterval(() => {
     if (engine) {
-      customerCount.value = engine.customers.length
+      occupiedSeats.value = engine.customers.filter(
+        c => c.state !== 'leaving' && c.state !== 'walking_in'
+      ).length
     }
   }, 500)
 })
@@ -58,11 +59,31 @@ onMounted(() => {
 onUnmounted(() => {
   if (engine) engine.stop()
   if (resizeObserver) resizeObserver.disconnect()
+  if (updateInterval) clearInterval(updateInterval)
 })
 
-watch(() => props.dishes, (newDishes) => {
-  if (engine) engine.updateDishes(newDishes)
+watch(() => props.dishes, (val) => {
+  if (engine) engine.updateDishes(val)
 }, { deep: true })
+
+watch(() => props.seatCount, (val) => {
+  if (engine) engine.updateSeats(val)
+})
+
+function confirmOrder(customer, dish) {
+  if (engine) engine.confirmOrder(customer, dish)
+}
+
+function serveDish(customer) {
+  if (engine) engine.serveDish(customer)
+}
+
+function checkout(customer) {
+  if (engine) return engine.checkout(customer)
+  return 0
+}
+
+defineExpose({ confirmOrder, serveDish, checkout })
 </script>
 
 <style scoped>
@@ -80,18 +101,25 @@ canvas {
   height: 100%;
 }
 
-.customer-count {
+.canvas-overlay-info {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 13px;
+  top: 10px;
+  right: 10px;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 10px;
+}
+
+.seat-info, .tip {
+  background: rgba(0, 0, 0, 0.55);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 16px;
+  font-size: 12px;
   backdrop-filter: blur(4px);
+  font-family: 'Comic Sans MS', cursive;
+}
+
+.tip {
+  color: #f1c40f;
 }
 </style>
