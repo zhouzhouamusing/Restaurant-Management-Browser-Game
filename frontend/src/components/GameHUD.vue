@@ -15,7 +15,11 @@
     <div class="hud-section hud-center">
       <div class="coin-display">
         <span class="coin-icon-wrapper">
-          <span class="coin-emoji">🪙</span>
+          <svg class="coin-svg" viewBox="0 0 24 24" width="22" height="22">
+            <circle cx="12" cy="12" r="10" fill="#f1c40f" stroke="#b8860b" stroke-width="2"/>
+            <circle cx="12" cy="12" r="6.5" fill="none" stroke="#d4a017" stroke-width="1" opacity="0.5"/>
+            <text x="12" y="16" text-anchor="middle" font-size="10" font-weight="bold" fill="#8B6914">¥</text>
+          </svg>
         </span>
         <span class="coin-amount" :class="{ bump: coinBump }">{{ animatedCoins }}</span>
       </div>
@@ -169,8 +173,7 @@ function easeOut(t) {
   align-items: center;
 }
 
-.coin-emoji {
-  font-size: 22px;
+.coin-svg {
   animation: coinSpin 4s linear infinite;
   display: inline-block;
 }

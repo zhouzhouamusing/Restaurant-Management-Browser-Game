@@ -55,16 +55,16 @@
                   </div>
                   <div class="bill-row">
                     <span>单价</span>
-                    <span>🪙 {{ checkoutPanel.customer?.orderedDish?.price || 0 }}</span>
+                    <span><svg class="coin-inline" viewBox="0 0 20 20" width="14" height="14"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> {{ checkoutPanel.customer?.orderedDish?.price || 0 }}</span>
                   </div>
                   <div class="bill-row tip-row">
                     <span>小费</span>
-                    <span class="tip-amount">🪙 {{ checkoutTip }}</span>
+                    <span class="tip-amount"><svg class="coin-inline" viewBox="0 0 20 20" width="14" height="14"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> {{ checkoutTip }}</span>
                   </div>
                   <div class="bill-divider"></div>
                   <div class="bill-row total-row">
                     <span>合计</span>
-                    <span class="total-amount">🪙 {{ checkoutTotal }}</span>
+                    <span class="total-amount"><svg class="coin-inline" viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> {{ checkoutTotal }}</span>
                   </div>
                 </div>
                 <div class="satisfaction-display">
@@ -76,7 +76,7 @@
                 </div>
               </div>
               <button class="checkout-confirm-btn" @click="confirmCheckout">
-                💰 收款 {{ checkoutTotal }} 金币
+                <svg class="coin-inline" viewBox="0 0 20 20" width="16" height="16"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> 收款 {{ checkoutTotal }} 金币
               </button>
             </div>
           </div>
@@ -144,6 +144,7 @@ import { ref, reactive, onMounted, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { gameApi } from '../api'
 import { Staff, getHireCost } from '../game/staff.js'
+import { saveToLocal, loadFromLocal } from '../game/persistence.js'
 import GameHUD from '../components/GameHUD.vue'
 import RestaurantCanvas from '../components/RestaurantCanvas.vue'
 import DishManager from '../components/DishManager.vue'
@@ -161,6 +162,7 @@ const toasts = ref([])
 let toastId = 0
 let staffIdCounter = 0
 let salaryInterval = null
+let autoSaveInterval = null
 
 const tabs = [
   { id: 'dishes', icon: '🍽️', label: '菜品' },
@@ -219,19 +221,59 @@ onMounted(async () => {
     router.push('/login')
     return
   }
+
+  // Load from localStorage first (fast, works offline)
+  const localSave = loadFromLocal(user.id)
+  let backendSave = null
+
   try {
     const res = await gameApi.load(user.id)
     if (res.data.code === 200) {
-      const data = res.data.data
-      gameState.coins = data.coins
-      gameState.level = data.level
-      gameState.customersServed = data.customersServed
-      const savedDishes = JSON.parse(data.dishes || '[]')
-      if (savedDishes.length > 0) gameState.dishes = savedDishes
+      backendSave = res.data.data
     }
   } catch (e) {
-    // defaults
+    // backend unavailable
   }
+
+  // Use whichever save is newer
+  const useLocal = localSave && (!backendSave || localSave.savedAt > new Date(backendSave.updateTime || 0).getTime())
+  if (useLocal && localSave) {
+    gameState.coins = localSave.coins
+    gameState.level = localSave.level
+    gameState.customersServed = localSave.customersServed
+    if (localSave.dishes && localSave.dishes.length > 0) gameState.dishes = localSave.dishes
+    if (localSave.seatCount) gameState.seatCount = localSave.seatCount
+    if (localSave.staff && localSave.staff.length > 0) {
+      gameState.staff = localSave.staff.map(s => Staff.fromSerialized(s))
+      staffIdCounter = Math.max(...localSave.staff.map(s => s.id), 0)
+    }
+    if (localSave.billHistory) billHistory.value = localSave.billHistory
+  } else if (backendSave) {
+    gameState.coins = backendSave.coins
+    gameState.level = backendSave.level
+    gameState.customersServed = backendSave.customersServed
+    const savedDishes = JSON.parse(backendSave.dishes || '[]')
+    if (savedDishes.length > 0) gameState.dishes = savedDishes
+    if (backendSave.seatCount) gameState.seatCount = backendSave.seatCount
+    if (backendSave.staffData) {
+      try {
+        const staffArr = JSON.parse(backendSave.staffData)
+        gameState.staff = staffArr.map(s => Staff.fromSerialized(s))
+        staffIdCounter = Math.max(...staffArr.map(s => s.id), 0)
+      } catch (e) {}
+    }
+    if (backendSave.billHistory) {
+      try { billHistory.value = JSON.parse(backendSave.billHistory) } catch (e) {}
+    }
+  }
+
+  // Auto-save to localStorage every 30 seconds
+  autoSaveInterval = setInterval(() => {
+    saveToLocal(user.id, gameState, billHistory.value)
+  }, 30000)
+
+  // Save on page unload
+  window.addEventListener('beforeunload', handleBeforeUnload)
 
   salaryInterval = setInterval(() => {
     const totalSalary = gameState.staff.reduce((sum, s) => sum + s.getSalary(), 0)
@@ -247,7 +289,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (salaryInterval) clearInterval(salaryInterval)
+  if (autoSaveInterval) clearInterval(autoSaveInterval)
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
+
+function handleBeforeUnload() {
+  saveToLocal(user.id, gameState, billHistory.value)
+}
 
 function showToast(icon, text, type = 'info') {
   const id = ++toastId
@@ -367,11 +415,19 @@ async function saveGame() {
       coins: gameState.coins,
       level: gameState.level,
       dishes: JSON.stringify(gameState.dishes),
-      customersServed: gameState.customersServed
+      customersServed: gameState.customersServed,
+      seatCount: gameState.seatCount,
+      staffData: JSON.stringify(gameState.staff.map(s => ({
+        id: s.id, type: s.type, level: s.level,
+        proficiency: s.proficiency, name: s.name, totalServed: s.totalServed
+      }))),
+      billHistory: JSON.stringify(billHistory.value.slice(0, 50))
     })
+    saveToLocal(user.id, gameState, billHistory.value)
     showToast('💾', '存档成功！', 'success')
   } catch (e) {
-    showToast('❌', '存档失败', 'error')
+    saveToLocal(user.id, gameState, billHistory.value)
+    showToast('💾', '本地存档成功（服务器不可用）', 'success')
   }
 }
 
@@ -734,6 +790,12 @@ function logout() {
 }
 
 /* Transitions */
+.coin-inline {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 2px;
+}
+
 .fade-scale-enter-active {
   animation: fadeScaleIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }

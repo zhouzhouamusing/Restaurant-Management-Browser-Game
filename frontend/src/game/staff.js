@@ -271,3 +271,12 @@ export function getHireCost(type, currentCount) {
   const config = STAFF_CONFIG[type]
   return Math.floor(config.baseCost * Math.pow(config.costMultiplier, currentCount))
 }
+
+Staff.fromSerialized = function(data) {
+  const staff = new Staff(data.type, data.id)
+  staff.level = data.level || 1
+  staff.proficiency = data.proficiency || 0
+  staff.name = data.name || staff.name
+  staff.totalServed = data.totalServed || 0
+  return staff
+}

@@ -1,5 +1,6 @@
 import { Customer } from './customer.js'
 import { Restaurant } from './restaurant.js'
+import { drawCustomerBody, drawStaffBody } from './character-renderer.js'
 
 const FONT = '"ZCOOL KuaiLe", "Nunito", "Comic Sans MS", cursive'
 
@@ -30,6 +31,8 @@ export class GameEngine {
 
     // Salary visual effect
     this.salaryEffect = null
+    // Cash register animation
+    this.registerAnim = { active: false, frame: 0, maxFrame: 45 }
 
     this._bindEvents()
   }
@@ -96,13 +99,20 @@ export class GameEngine {
   }
 
   _assignStaffPositions() {
+    const w = this.canvas.width
     const h = this.canvas.height
     const cy = h - 70
-    let wx = 60
+    let waiterX = 80
+    let cashierX = w - 150
     for (const s of this.staff) {
       if (s.homeX === 0 && s.homeY === 0) {
-        s.setHomePosition(wx, cy - 20)
-        wx += 40
+        if (s.type === 'cashier') {
+          s.setHomePosition(cashierX, cy - 15)
+          cashierX -= 35
+        } else {
+          s.setHomePosition(waiterX, cy - 15)
+          waiterX += 40
+        }
       }
     }
   }
@@ -177,6 +187,14 @@ export class GameEngine {
       if (this.salaryEffect.life <= 0) this.salaryEffect = null
     }
 
+    // Register animation
+    if (this.registerAnim.active) {
+      this.registerAnim.frame++
+      if (this.registerAnim.frame >= this.registerAnim.maxFrame) {
+        this.registerAnim.active = false
+      }
+    }
+
     this.particles = this.particles.filter(p => {
       p.x += p.vx
       p.y += p.vy
@@ -199,7 +217,11 @@ export class GameEngine {
       this.onEarnCoins(result.payment)
       this._spawnCoinEffect(result.customer.x, result.customer.y - 30, result.payment)
       this._addBill(result.customer, result.payment, result.staff)
-    } else if (result.type === 'dish_served' || result.type === 'order_taken') {
+      this.registerAnim = { active: true, frame: 0, maxFrame: 45 }
+    } else if (result.type === 'dish_served') {
+      this._spawnServeSuccessEffect(result.customer.x, result.customer.y - 20, result.customer.orderedDish)
+      this._spawnStaffEffect(result.customer.x, result.customer.y - 40, result.staff)
+    } else if (result.type === 'order_taken') {
       this._spawnStaffEffect(result.customer.x, result.customer.y - 40, result.staff)
     }
     this.onStaffAction(result)
@@ -220,6 +242,7 @@ export class GameEngine {
 
   serveDish(customer) {
     customer.serveDish()
+    this._spawnServeSuccessEffect(customer.x, customer.y - 20, customer.orderedDish)
   }
 
   checkout(customer) {
@@ -228,6 +251,7 @@ export class GameEngine {
     this.onEarnCoins(payment)
     this._spawnCoinEffect(customer.x, customer.y - 30, payment)
     this._addBill(customer, payment, null)
+    this.registerAnim = { active: true, frame: 0, maxFrame: 45 }
     return payment
   }
 
@@ -249,12 +273,13 @@ export class GameEngine {
   _spawnCoinEffect(x, y, amount) {
     this.floatingTexts.push({
       x, y: y - 20,
-      text: `+${amount} 🪙`,
+      text: `+${amount}`,
       color: '#f1c40f',
       size: 22,
       life: 70,
       maxLife: 70,
-      alpha: 1
+      alpha: 1,
+      coinIcon: true
     })
     for (let i = 0; i < 10; i++) {
       this.particles.push({
@@ -293,6 +318,54 @@ export class GameEngine {
         size: Math.random() * 4 + 1.5
       })
     }
+  }
+
+  _spawnServeSuccessEffect(x, y, dish) {
+    // Radial star burst
+    for (let i = 0; i < 12; i++) {
+      const angle = (Math.PI * 2 / 12) * i
+      this.particles.push({
+        x, y: y - 10,
+        vx: Math.cos(angle) * 4,
+        vy: Math.sin(angle) * 4 - 2,
+        life: 35,
+        maxLife: 35,
+        alpha: 1,
+        color: ['#f1c40f', '#e67e22', '#2ecc71', '#fff'][i % 4],
+        size: Math.random() * 4 + 2
+      })
+    }
+    // Dish emoji floating up with checkmark
+    this.floatingTexts.push({
+      x, y: y - 25,
+      text: `${dish?.emoji || '🍲'} ✓`,
+      color: '#27ae60',
+      size: 20,
+      life: 50,
+      maxLife: 50,
+      alpha: 1
+    })
+    // Success text
+    this.floatingTexts.push({
+      x, y: y - 50,
+      text: '上菜成功!',
+      color: '#f39c12',
+      size: 16,
+      life: 60,
+      maxLife: 60,
+      alpha: 1
+    })
+    // Expanding ring
+    this.particles.push({
+      x, y: y - 10,
+      vx: 0, vy: 0,
+      life: 25,
+      maxLife: 25,
+      alpha: 0.8,
+      color: '#f1c40f',
+      size: 5,
+      ring: true
+    })
   }
 
   _render() {
@@ -487,18 +560,28 @@ export class GameEngine {
         this._drawServingIndicator(ctx, c, c.x, y)
       }
 
-      // Customer emoji
-      ctx.font = '34px serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(c.emoji, c.x, y - 10)
+      // Customer body
+      drawCustomerBody(ctx, c.x, y, c, this.frameCount)
 
       // Mood
       ctx.font = '15px serif'
+      ctx.textAlign = 'center'
       ctx.fillText(c.getMoodEmoji(), c.x + 22, y - 38)
 
       // Patience bar
       if (c.state !== 'walking_in' && c.state !== 'leaving' && c.state !== 'paying') {
         this._drawPatienceBar(ctx, c.x, y - 58, c.patience)
+        this._drawPatienceCountdown(ctx, c.x, y - 58, c)
+      }
+
+      // Critical patience red glow
+      if (c.patience < 30 && c.state !== 'leaving' && c.state !== 'paying' && c.state !== 'eating') {
+        const glowAlpha = 0.2 + Math.sin(this.frameCount * 0.12) * 0.15
+        ctx.beginPath()
+        ctx.arc(c.x, y - 10, 38, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(231, 76, 60, ${glowAlpha})`
+        ctx.lineWidth = 3
+        ctx.stroke()
       }
 
       // Dialogue bubble
@@ -586,6 +669,57 @@ export class GameEngine {
     ctx.roundRect(x - w / 2, y, w * (patience / 100), h, 3)
     ctx.fillStyle = color
     ctx.fill()
+  }
+
+  _drawPatienceCountdown(ctx, x, y, customer) {
+    const seconds = customer.getRemainingSeconds()
+    const patience = customer.patience
+    const offsetX = 26
+
+    ctx.save()
+
+    if (patience < 15) {
+      const shake = (Math.random() - 0.5) * 3
+      const pulse = Math.sin(this.frameCount * 0.2) * 0.15 + 1
+      ctx.translate(x + offsetX + shake, y + 4 + shake)
+      ctx.scale(pulse, pulse)
+      ctx.font = `bold 13px ${FONT}`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#e74c3c'
+      ctx.fillText(`${seconds}s`, 0, 0)
+      ctx.restore()
+
+      // Flashing exclamation
+      ctx.save()
+      if (this.frameCount % 20 < 10) {
+        ctx.font = `bold 16px ${FONT}`
+        ctx.fillStyle = '#e74c3c'
+        ctx.textAlign = 'center'
+        ctx.fillText('!', x, y - 14)
+      }
+      ctx.restore()
+    } else if (patience < 30) {
+      const pulse = Math.sin(this.frameCount * 0.15) * 0.08 + 1
+      ctx.translate(x + offsetX, y + 4)
+      ctx.scale(pulse, pulse)
+      ctx.font = `bold 12px ${FONT}`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#e74c3c'
+      ctx.fillText(`${seconds}s`, 0, 0)
+      ctx.restore()
+    } else if (patience < 50) {
+      ctx.font = `bold 11px ${FONT}`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#f39c12'
+      ctx.fillText(`${seconds}s`, x + offsetX, y + 4)
+      ctx.restore()
+    } else {
+      ctx.font = `10px ${FONT}`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = '#999'
+      ctx.fillText(`${seconds}s`, x + offsetX, y + 4)
+      ctx.restore()
+    }
   }
 
   _drawDialogueBubble(ctx, customer, x, y) {
@@ -713,17 +847,7 @@ export class GameEngine {
       }
 
       // Character body (bouncing/walking)
-      const tilt = isMoving ? Math.sin(s.walkFrame * 0.15) * 0.08 : 0
-      ctx.translate(sx, sy)
-      ctx.rotate(tilt)
-
-      // Staff emoji - larger for visibility
-      ctx.font = '28px serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(s.emoji, 0, -5)
-
-      ctx.rotate(-tilt)
-      ctx.translate(-sx, -sy)
+      drawStaffBody(ctx, sx, sy, s, this.frameCount)
 
       // Level badge
       ctx.beginPath()
@@ -793,10 +917,19 @@ export class GameEngine {
     for (const p of this.particles) {
       ctx.save()
       ctx.globalAlpha = p.alpha
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-      ctx.fillStyle = p.color
-      ctx.fill()
+      if (p.ring) {
+        const expansion = (1 - p.life / p.maxLife) * 35
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, expansion, 0, Math.PI * 2)
+        ctx.strokeStyle = p.color
+        ctx.lineWidth = 2.5 * (p.life / p.maxLife)
+        ctx.stroke()
+      } else {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+        ctx.fillStyle = p.color
+        ctx.fill()
+      }
       ctx.restore()
     }
   }
@@ -811,8 +944,35 @@ export class GameEngine {
       ctx.shadowColor = 'rgba(0,0,0,0.2)'
       ctx.shadowBlur = 4
       ctx.fillText(t.text, t.x, t.y)
+      // Draw coin icon next to coin amounts
+      if (t.coinIcon) {
+        const textW = ctx.measureText(t.text).width
+        this._drawCoinIcon(ctx, t.x + textW / 2 + 12, t.y - 4, 8)
+      }
       ctx.restore()
     }
+  }
+
+  _drawCoinIcon(ctx, x, y, size) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(x, y, size, 0, Math.PI * 2)
+    ctx.fillStyle = '#f1c40f'
+    ctx.fill()
+    ctx.strokeStyle = '#b8860b'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.arc(x, y, size * 0.6, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(184, 134, 11, 0.4)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.font = `bold ${Math.floor(size * 1.1)}px ${FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#8B6914'
+    ctx.shadowBlur = 0
+    ctx.fillText('¥', x, y + size * 0.4)
+    ctx.restore()
   }
 
   _drawCashierCounter(ctx, w, h) {
@@ -832,31 +992,33 @@ export class GameEngine {
     ctx.fillStyle = 'rgba(255,255,255,0.08)'
     ctx.fillRect(0, cy, w, 4)
 
-    // Cashier area
-    const cashierX = w - 180
+    // Cash register area
+    const cashierX = w - 160
     ctx.save()
     ctx.fillStyle = 'rgba(255,255,255,0.04)'
     ctx.beginPath()
-    ctx.roundRect(cashierX, cy + 8, 170, counterH - 16, 10)
+    ctx.roundRect(cashierX - 20, cy + 6, 180, counterH - 12, 10)
     ctx.fill()
     ctx.strokeStyle = 'rgba(255,255,255,0.1)'
     ctx.lineWidth = 1
     ctx.stroke()
     ctx.restore()
 
-    ctx.font = '28px serif'
-    ctx.textAlign = 'center'
-    ctx.fillText('🖥️', cashierX + 40, cy + 45)
+    // Draw cash register (canvas drawn, not emoji)
+    this._drawCashRegister(ctx, cashierX + 20, cy + 12)
+
     ctx.font = `11px ${FONT}`
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
-    ctx.fillText('收银台', cashierX + 40, cy + 60)
-
-    ctx.font = '24px serif'
     ctx.textAlign = 'center'
-    ctx.fillText('💵', cashierX + 100, cy + 40)
-    ctx.fillText('🧾', cashierX + 140, cy + 40)
+    ctx.fillText('收银台', cashierX + 20, cy + 62)
 
-    // Kitchen
+    // Receipt and money decorations
+    ctx.font = '20px serif'
+    ctx.textAlign = 'center'
+    ctx.fillText('🧾', cashierX + 80, cy + 40)
+    ctx.fillText('💵', cashierX + 120, cy + 40)
+
+    // Kitchen area (left side)
     ctx.font = '28px serif'
     ctx.textAlign = 'center'
     ctx.fillText('🧑‍🍳', 45, cy + 45)
@@ -876,6 +1038,88 @@ export class GameEngine {
       const dishFloat = Math.sin(this.frameCount * 0.03 + i * 0.5) * 1.5
       ctx.fillText(this.dishes[i].emoji || '🍲', dishStartX + i * 42, cy + 40 + dishFloat)
     }
+  }
+
+  _drawCashRegister(ctx, x, y) {
+    const anim = this.registerAnim
+    const isAnimating = anim.active
+    const animProgress = isAnimating ? anim.frame / anim.maxFrame : 0
+
+    ctx.save()
+
+    // Register body
+    const bodyGrad = ctx.createLinearGradient(x - 18, y, x + 18, y + 36)
+    bodyGrad.addColorStop(0, '#666')
+    bodyGrad.addColorStop(0.5, '#888')
+    bodyGrad.addColorStop(1, '#555')
+    ctx.beginPath()
+    ctx.roundRect(x - 18, y, 36, 36, 4)
+    ctx.fillStyle = bodyGrad
+    ctx.fill()
+    ctx.strokeStyle = '#444'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Screen
+    const screenGlow = isAnimating ? 0.3 + Math.sin(anim.frame * 0.3) * 0.2 : 0
+    ctx.beginPath()
+    ctx.roundRect(x - 13, y + 3, 26, 12, 2)
+    ctx.fillStyle = isAnimating ? `rgba(0, 255, 100, ${0.8 + screenGlow})` : '#1a3a1a'
+    ctx.fill()
+    ctx.strokeStyle = '#333'
+    ctx.lineWidth = 0.5
+    ctx.stroke()
+
+    // Screen text
+    ctx.font = `bold 7px monospace`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = isAnimating ? '#fff' : '#0f0'
+    ctx.fillText(isAnimating ? '¥ OK!' : '¥', x, y + 12)
+
+    // Button grid (3x3)
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 3; col++) {
+        ctx.beginPath()
+        ctx.roundRect(x - 11 + col * 8, y + 17 + row * 7, 5, 5, 1)
+        ctx.fillStyle = '#aaa'
+        ctx.fill()
+      }
+    }
+
+    // Cash drawer
+    const drawerOpen = isAnimating ? Math.sin(animProgress * Math.PI) * 8 : 0
+    ctx.beginPath()
+    ctx.roundRect(x - 16, y + 33 + drawerOpen, 32, 6, 2)
+    ctx.fillStyle = '#777'
+    ctx.fill()
+    ctx.strokeStyle = '#555'
+    ctx.lineWidth = 0.5
+    ctx.stroke()
+
+    // Drawer slot line
+    ctx.beginPath()
+    ctx.moveTo(x - 6, y + 35 + drawerOpen)
+    ctx.lineTo(x + 6, y + 35 + drawerOpen)
+    ctx.strokeStyle = '#444'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // Coin particles on checkout animation
+    if (isAnimating && anim.frame < 20 && anim.frame % 4 === 0) {
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y + 10,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 3 - 1,
+        life: 30,
+        maxLife: 30,
+        alpha: 1,
+        color: Math.random() > 0.5 ? '#f1c40f' : '#f39c12',
+        size: Math.random() * 3 + 1.5
+      })
+    }
+
+    ctx.restore()
   }
 
   _drawSalaryEffect(ctx, w, h) {

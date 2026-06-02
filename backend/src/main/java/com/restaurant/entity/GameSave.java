@@ -11,6 +11,9 @@ public class GameSave {
     private Integer level;
     private String dishes;
     private Integer customersServed;
+    private Integer seatCount;
+    private String staffData;
+    private String billHistory;
     private LocalDateTime saveTime;
     private LocalDateTime updateTime;
 }

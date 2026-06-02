@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS `game_save` (
     `level` INT DEFAULT 1 COMMENT '餐厅等级',
     `dishes` TEXT COMMENT '已解锁菜品JSON',
     `customers_served` INT DEFAULT 0 COMMENT '已服务顾客数',
+    `seat_count` INT DEFAULT 4 COMMENT '座位数量',
+    `staff_data` TEXT COMMENT '员工数据JSON',
+    `bill_history` TEXT COMMENT '账单历史JSON',
     `save_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '存档时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_user_id (`user_id`)

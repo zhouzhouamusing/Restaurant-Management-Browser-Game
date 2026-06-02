@@ -1,6 +1,8 @@
 /**
  * 顾客类 - 顾客自主点菜、评价系统、对话气泡
  */
+import { getRandomBodyColor } from './character-renderer.js'
+
 export class Customer {
   constructor(id, seatIndex, tablePos, availableDishes) {
     this.id = id
@@ -21,6 +23,7 @@ export class Customer {
     this.tipMultiplier = 1
     this.emoji = this.randomEmoji()
     this.name = this.randomName()
+    this.bodyColor = getRandomBodyColor()
     this.bubbleAnim = 0
     this.bouncePhase = Math.random() * Math.PI * 2
     this.highlighted = false
@@ -313,6 +316,21 @@ export class Customer {
 
   isDone() {
     return this.state === 'leaving' && this.alpha <= 0
+  }
+
+  getCurrentDecayRate() {
+    switch (this.state) {
+      case 'cooking': return this.patienceDecay * 0.4
+      case 'ready_to_serve': return this.patienceDecay * 0.7
+      case 'waiting_to_pay': return this.patienceDecay * 0.5
+      default: return this.patienceDecay
+    }
+  }
+
+  getRemainingSeconds() {
+    const rate = this.getCurrentDecayRate()
+    if (rate <= 0) return 999
+    return Math.ceil(this.patience / rate / 60)
   }
 
   getBounds() {
