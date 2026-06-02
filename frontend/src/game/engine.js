@@ -544,14 +544,14 @@ export class GameEngine {
       // Highlight glow
       if (c.highlighted) {
         ctx.beginPath()
-        ctx.arc(c.x, y - 15, 34, 0, Math.PI * 2)
-        const glowGrad = ctx.createRadialGradient(c.x, y - 15, 0, c.x, y - 15, 34)
+        ctx.arc(c.x, y + 5, 30, 0, Math.PI * 2)
+        const glowGrad = ctx.createRadialGradient(c.x, y + 5, 0, c.x, y + 5, 30)
         glowGrad.addColorStop(0, 'rgba(241, 196, 15, 0.2)')
         glowGrad.addColorStop(1, 'rgba(241, 196, 15, 0)')
         ctx.fillStyle = glowGrad
         ctx.fill()
-        ctx.strokeStyle = 'rgba(241, 196, 15, 0.7)'
-        ctx.lineWidth = 2.5
+        ctx.strokeStyle = 'rgba(241, 196, 15, 0.6)'
+        ctx.lineWidth = 2
         ctx.stroke()
       }
 
@@ -564,21 +564,21 @@ export class GameEngine {
       drawCustomerBody(ctx, c.x, y, c, this.frameCount)
 
       // Mood
-      ctx.font = '15px serif'
+      ctx.font = '14px serif'
       ctx.textAlign = 'center'
-      ctx.fillText(c.getMoodEmoji(), c.x + 22, y - 38)
+      ctx.fillText(c.getMoodEmoji(), c.x + 20, y - 22)
 
       // Patience bar
       if (c.state !== 'walking_in' && c.state !== 'leaving' && c.state !== 'paying') {
-        this._drawPatienceBar(ctx, c.x, y - 58, c.patience)
-        this._drawPatienceCountdown(ctx, c.x, y - 58, c)
+        this._drawPatienceBar(ctx, c.x, y - 38, c.patience)
+        this._drawPatienceCountdown(ctx, c.x, y - 38, c)
       }
 
       // Critical patience red glow
       if (c.patience < 30 && c.state !== 'leaving' && c.state !== 'paying' && c.state !== 'eating') {
         const glowAlpha = 0.2 + Math.sin(this.frameCount * 0.12) * 0.15
         ctx.beginPath()
-        ctx.arc(c.x, y - 10, 38, 0, Math.PI * 2)
+        ctx.arc(c.x, y + 5, 32, 0, Math.PI * 2)
         ctx.strokeStyle = `rgba(231, 76, 60, ${glowAlpha})`
         ctx.lineWidth = 3
         ctx.stroke()
@@ -589,11 +589,11 @@ export class GameEngine {
 
       // Interaction hint
       if (c.clickable && c.highlighted) {
-        ctx.font = `bold 12px ${FONT}`
+        ctx.font = `bold 11px ${FONT}`
         ctx.fillStyle = '#f39c12'
         ctx.textAlign = 'center'
         const hintBounce = Math.sin(this.frameCount * 0.08) * 2
-        ctx.fillText(c.interactionHint, c.x, y + 48 + hintBounce)
+        ctx.fillText(c.interactionHint, c.x, y + 40 + hintBounce)
       }
 
       ctx.restore()
@@ -606,7 +606,7 @@ export class GameEngine {
     const actionText = staff.showingAction || '服务中'
 
     // Animated service badge above customer
-    const badgeY = y - 105
+    const badgeY = y - 78
     const pulseScale = 1 + Math.sin(this.frameCount * 0.1) * 0.05
 
     ctx.save()
@@ -644,7 +644,7 @@ export class GameEngine {
     ctx.beginPath()
     ctx.setLineDash([3, 3])
     ctx.moveTo(x, badgeY + 12)
-    ctx.lineTo(x, y - 90)
+    ctx.lineTo(x, y - 62)
     ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)'
     ctx.lineWidth = 1
     ctx.stroke()
@@ -733,7 +733,7 @@ export class GameEngine {
     const bw = Math.max(textW + 20, 60)
     const bh = 28
     const bx = x - bw / 2
-    const by = y - 88
+    const by = y - 62
 
     let bgColor = 'rgba(255,255,255,0.95)'
     let borderColor = '#e0e0e0'
@@ -825,58 +825,56 @@ export class GameEngine {
       ctx.globalAlpha = 1
 
       const isMoving = s.moving || s.returning
-      const walkBob = isMoving ? Math.sin(s.walkFrame * 0.15) * 3 : Math.sin(s.animPhase) * 1.5
+      const walkBob = isMoving ? Math.sin(s.walkFrame * 0.15) * 2 : Math.sin(s.animPhase) * 1
       const sx = s.x
       const sy = s.y + walkBob
 
-      // Shadow
-      ctx.beginPath()
-      ctx.ellipse(sx, sy + 18, 12, 4, 0, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(0,0,0,0.1)'
-      ctx.fill()
-
-      // Body glow when busy
+      // Body glow when busy (after arriving)
       if (s.busy && !isMoving) {
         ctx.beginPath()
-        ctx.arc(sx, sy - 5, 22, 0, Math.PI * 2)
-        const glowIntensity = 0.15 + Math.sin(this.frameCount * 0.08) * 0.05
+        ctx.arc(sx, sy, 24, 0, Math.PI * 2)
+        const glowIntensity = 0.12 + Math.sin(this.frameCount * 0.08) * 0.05
         ctx.fillStyle = s.type === 'waiter'
           ? `rgba(52, 152, 219, ${glowIntensity})`
           : `rgba(155, 89, 182, ${glowIntensity})`
         ctx.fill()
       }
 
-      // Character body (bouncing/walking)
+      // Character body
       drawStaffBody(ctx, sx, sy, s, this.frameCount)
 
       // Level badge
       ctx.beginPath()
-      ctx.roundRect(sx + 10, sy - 22, 22, 14, 7)
+      ctx.roundRect(sx + 12, sy - 16, 20, 13, 7)
       ctx.fillStyle = s.type === 'waiter' ? '#2980b9' : '#8e44ad'
       ctx.fill()
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+      ctx.lineWidth = 1
+      ctx.stroke()
       ctx.font = `bold 8px ${FONT}`
       ctx.textAlign = 'center'
       ctx.fillStyle = '#fff'
-      ctx.fillText(`Lv${s.level}`, sx + 21, sy - 12)
+      ctx.fillText(`Lv${s.level}`, sx + 22, sy - 7)
 
       // Name tag
       if (!isMoving) {
         ctx.font = `9px ${FONT}`
         ctx.fillStyle = '#4a4a4a'
         ctx.textAlign = 'center'
-        ctx.fillText(s.name, sx, sy + 16)
+        ctx.fillText(s.name, sx, sy + 34)
       }
 
-      // Action indicator when near customer
+      // Action indicator when performing action at customer
       if (s.busy && !isMoving && s.actionAnim > 0) {
         const actionScale = 1 + Math.sin(s.actionAnim * 0.3) * 0.2
         ctx.save()
-        ctx.translate(sx, sy - 30)
+        ctx.translate(sx, sy - 28)
         ctx.scale(actionScale, actionScale)
-        ctx.font = '16px serif'
+        ctx.font = '14px serif'
         ctx.textAlign = 'center'
         if (s.type === 'waiter') {
-          ctx.fillText('🍽️', 0, 0)
+          const dishEmoji = s.targetCustomer?.orderedDish?.emoji || '🍽️'
+          ctx.fillText(dishEmoji, 0, 0)
         } else {
           ctx.fillText('💰', 0, 0)
         }
@@ -884,15 +882,15 @@ export class GameEngine {
       }
 
       // Movement trail particles when walking
-      if (isMoving && this.frameCount % 4 === 0) {
+      if (isMoving && this.frameCount % 5 === 0) {
         this.particles.push({
-          x: sx + (Math.random() - 0.5) * 8,
-          y: sy + 12,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: -0.3,
-          life: 15,
-          maxLife: 15,
-          alpha: 0.6,
+          x: sx + (Math.random() - 0.5) * 6,
+          y: sy + 20,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: -0.2,
+          life: 12,
+          maxLife: 12,
+          alpha: 0.5,
           color: s.type === 'waiter' ? '#74b9ff' : '#a29bfe',
           size: Math.random() * 2 + 1
         })

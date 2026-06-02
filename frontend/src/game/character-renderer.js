@@ -21,94 +21,91 @@ export function drawCustomerBody(ctx, x, y, customer, frameCount) {
 
   // Shadow
   ctx.beginPath()
-  ctx.ellipse(x, y + 24, 14, 5, 0, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(0,0,0,0.08)'
+  ctx.ellipse(x, y + 28, 14, 5, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.1)'
   ctx.fill()
 
   // Legs
   const legSwing = isWalking ? Math.sin(walkPhase) * 0.5 : 0
-  ctx.strokeStyle = '#8B6914'
-  ctx.lineWidth = 3
+  ctx.strokeStyle = '#6B4A2B'
+  ctx.lineWidth = 3.5
   ctx.lineCap = 'round'
 
-  // Left leg
   ctx.beginPath()
-  ctx.moveTo(x - 5, y + 10)
-  ctx.lineTo(x - 5 - Math.sin(legSwing) * 7, y + 23)
+  ctx.moveTo(x - 5, y + 14)
+  ctx.lineTo(x - 5 - Math.sin(legSwing) * 7, y + 26)
   ctx.stroke()
 
-  // Right leg
   ctx.beginPath()
-  ctx.moveTo(x + 5, y + 10)
-  ctx.lineTo(x + 5 + Math.sin(legSwing) * 7, y + 23)
+  ctx.moveTo(x + 5, y + 14)
+  ctx.lineTo(x + 5 + Math.sin(legSwing) * 7, y + 26)
   ctx.stroke()
 
   // Shoes
-  ctx.fillStyle = '#5D4037'
+  ctx.fillStyle = '#4E342E'
   ctx.beginPath()
-  ctx.ellipse(x - 5 - Math.sin(legSwing) * 7, y + 24, 4, 2.5, 0, 0, Math.PI * 2)
+  ctx.ellipse(x - 5 - Math.sin(legSwing) * 7, y + 27, 5, 3, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.beginPath()
-  ctx.ellipse(x + 5 + Math.sin(legSwing) * 7, y + 24, 4, 2.5, 0, 0, Math.PI * 2)
+  ctx.ellipse(x + 5 + Math.sin(legSwing) * 7, y + 27, 5, 3, 0, 0, Math.PI * 2)
   ctx.fill()
 
   // Torso
   ctx.beginPath()
-  ctx.roundRect(x - 9, y - 10 + breathe, 18, 21, 6)
+  ctx.roundRect(x - 10, y - 4 + breathe, 20, 19, 7)
   ctx.fillStyle = bodyColor
   ctx.fill()
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'
+  ctx.lineWidth = 1
+  ctx.stroke()
+
+  // Collar/neckline
+  ctx.beginPath()
+  ctx.arc(x, y - 3 + breathe, 4, 0, Math.PI, false)
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)'
   ctx.lineWidth = 1
   ctx.stroke()
 
   // Arms
   const armSwing = isWalking ? Math.sin(walkPhase) * 0.4 : 0
-  ctx.strokeStyle = bodyColor
+  const skinColor = '#FFDAB9'
+  ctx.strokeStyle = skinColor
   ctx.lineWidth = 4
   ctx.lineCap = 'round'
 
   if (isEating) {
-    // Left arm at side
     ctx.beginPath()
-    ctx.moveTo(x - 9, y - 4)
-    ctx.lineTo(x - 15, y + 6)
+    ctx.moveTo(x - 10, y + 1)
+    ctx.lineTo(x - 16, y + 10)
     ctx.stroke()
-    // Right arm raised to mouth
     ctx.beginPath()
-    ctx.moveTo(x + 9, y - 4)
-    ctx.quadraticCurveTo(x + 16, y - 12, x + 6, y - 22)
+    ctx.moveTo(x + 10, y + 1)
+    ctx.quadraticCurveTo(x + 15, y - 6, x + 8, y - 14)
     ctx.stroke()
   } else if (isAngry) {
-    // Arms crossed
     ctx.beginPath()
-    ctx.moveTo(x - 9, y - 4)
-    ctx.lineTo(x + 5, y + 4)
+    ctx.moveTo(x - 10, y + 1)
+    ctx.lineTo(x + 4, y + 6)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(x + 9, y - 4)
-    ctx.lineTo(x - 5, y + 4)
+    ctx.moveTo(x + 10, y + 1)
+    ctx.lineTo(x - 4, y + 6)
     ctx.stroke()
   } else {
-    // Left arm
     ctx.beginPath()
-    ctx.moveTo(x - 9, y - 4)
-    ctx.lineTo(x - 15 - Math.sin(armSwing) * 5, y + 8 + Math.sin(armSwing) * 3)
+    ctx.moveTo(x - 10, y + 1)
+    ctx.lineTo(x - 15 - Math.sin(armSwing) * 5, y + 12 + Math.sin(armSwing) * 3)
     ctx.stroke()
-    // Right arm
     ctx.beginPath()
-    ctx.moveTo(x + 9, y - 4)
-    ctx.lineTo(x + 15 + Math.sin(armSwing) * 5, y + 8 - Math.sin(armSwing) * 3)
+    ctx.moveTo(x + 10, y + 1)
+    ctx.lineTo(x + 15 + Math.sin(armSwing) * 5, y + 12 - Math.sin(armSwing) * 3)
     ctx.stroke()
   }
 
-  // Arm outline for definition
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)'
-  ctx.lineWidth = 1
-
-  // Head (emoji)
-  ctx.font = '22px serif'
+  // Head - directly on top of body (no gap)
+  ctx.font = '20px serif'
   ctx.textAlign = 'center'
-  ctx.fillText(customer.emoji, x, y - 16)
+  ctx.fillText(customer.emoji, x, y - 8 + breathe)
 
   ctx.restore()
 }
@@ -116,6 +113,7 @@ export function drawCustomerBody(ctx, x, y, customer, frameCount) {
 export function drawStaffBody(ctx, x, y, staff, frameCount) {
   const isMoving = staff.moving || staff.returning
   const isBusy = staff.busy && !isMoving
+  const isCarrying = staff.carryingDish != null
   const walkPhase = staff.walkFrame * 0.15
   const breathe = Math.sin(frameCount * 0.04) * 0.5
   const isWaiter = staff.type === 'waiter'
@@ -126,84 +124,118 @@ export function drawStaffBody(ctx, x, y, staff, frameCount) {
 
   // Shadow
   ctx.beginPath()
-  ctx.ellipse(x, y + 22, 12, 4, 0, 0, Math.PI * 2)
-  ctx.fillStyle = 'rgba(0,0,0,0.1)'
+  ctx.ellipse(x, y + 26, 13, 4.5, 0, 0, Math.PI * 2)
+  ctx.fillStyle = 'rgba(0,0,0,0.12)'
   ctx.fill()
 
   // Legs
   const legSwing = isMoving ? Math.sin(walkPhase) * 0.5 : 0
   ctx.strokeStyle = '#2C3E50'
-  ctx.lineWidth = 3
+  ctx.lineWidth = 3.5
   ctx.lineCap = 'round'
 
   ctx.beginPath()
-  ctx.moveTo(x - 4, y + 9)
-  ctx.lineTo(x - 4 - Math.sin(legSwing) * 6, y + 21)
+  ctx.moveTo(x - 5, y + 13)
+  ctx.lineTo(x - 5 - Math.sin(legSwing) * 6, y + 24)
   ctx.stroke()
 
   ctx.beginPath()
-  ctx.moveTo(x + 4, y + 9)
-  ctx.lineTo(x + 4 + Math.sin(legSwing) * 6, y + 21)
+  ctx.moveTo(x + 5, y + 13)
+  ctx.lineTo(x + 5 + Math.sin(legSwing) * 6, y + 24)
   ctx.stroke()
 
   // Shoes
   ctx.fillStyle = '#1a1a1a'
   ctx.beginPath()
-  ctx.ellipse(x - 4 - Math.sin(legSwing) * 6, y + 22, 4, 2.5, 0, 0, Math.PI * 2)
+  ctx.ellipse(x - 5 - Math.sin(legSwing) * 6, y + 25, 4.5, 2.5, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.beginPath()
-  ctx.ellipse(x + 4 + Math.sin(legSwing) * 6, y + 22, 4, 2.5, 0, 0, Math.PI * 2)
+  ctx.ellipse(x + 5 + Math.sin(legSwing) * 6, y + 25, 4.5, 2.5, 0, 0, Math.PI * 2)
   ctx.fill()
 
   // Torso
   ctx.beginPath()
-  ctx.roundRect(x - 8, y - 10 + breathe, 16, 20, 5)
+  ctx.roundRect(x - 9, y - 4 + breathe, 18, 18, 6)
   ctx.fillStyle = bodyColor
   ctx.fill()
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)'
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)'
   ctx.lineWidth = 1
   ctx.stroke()
 
   // Apron/Vest overlay
   ctx.beginPath()
-  ctx.roundRect(x - 7, y - 4 + breathe, 14, 14, 4)
+  ctx.roundRect(x - 8, y + 0 + breathe, 16, 13, 4)
   ctx.fillStyle = accentColor
-  ctx.globalAlpha = 0.7
+  ctx.globalAlpha = 0.75
   ctx.fill()
   ctx.globalAlpha = 1
 
+  // Belt/strap detail
+  ctx.beginPath()
+  ctx.moveTo(x - 8, y + 0 + breathe)
+  ctx.lineTo(x + 8, y + 0 + breathe)
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)'
+  ctx.lineWidth = 1.5
+  ctx.stroke()
+
   // Arms
   const armSwing = isMoving ? Math.sin(walkPhase) * 0.35 : 0
-  ctx.strokeStyle = bodyColor
-  ctx.lineWidth = 3.5
+  const skinColor = '#FFDAB9'
+  ctx.strokeStyle = skinColor
+  ctx.lineWidth = 4
   ctx.lineCap = 'round'
 
-  if (isBusy) {
-    // One arm extended forward (serving)
+  if (isCarrying && isMoving) {
+    // Both arms raised carrying a tray
     ctx.beginPath()
-    ctx.moveTo(x - 8, y - 5)
-    ctx.lineTo(x - 14, y + 5)
+    ctx.moveTo(x - 9, y + 0)
+    ctx.quadraticCurveTo(x - 16, y - 8, x - 12, y - 14)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(x + 8, y - 5)
-    ctx.quadraticCurveTo(x + 18, y - 10, x + 20, y - 15)
+    ctx.moveTo(x + 9, y + 0)
+    ctx.quadraticCurveTo(x + 16, y - 8, x + 12, y - 14)
+    ctx.stroke()
+
+    // Tray
+    ctx.beginPath()
+    ctx.ellipse(x, y - 16, 14, 4, 0, 0, Math.PI * 2)
+    ctx.fillStyle = '#C0C0C0'
+    ctx.fill()
+    ctx.strokeStyle = '#999'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // Dish on tray
+    const dishBob = Math.sin(frameCount * 0.08) * 1
+    ctx.font = '14px serif'
+    ctx.textAlign = 'center'
+    ctx.fillText(staff.carryingDish, x, y - 20 + dishBob)
+  } else if (isBusy) {
+    // One arm extended (serving action)
+    ctx.beginPath()
+    ctx.moveTo(x - 9, y + 0)
+    ctx.lineTo(x - 14, y + 8)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(x + 9, y + 0)
+    ctx.quadraticCurveTo(x + 18, y - 6, x + 20, y - 12)
     ctx.stroke()
   } else {
-    // Normal swing
+    // Normal idle/swing
     ctx.beginPath()
-    ctx.moveTo(x - 8, y - 5)
-    ctx.lineTo(x - 13 - Math.sin(armSwing) * 4, y + 6 + Math.sin(armSwing) * 3)
+    ctx.moveTo(x - 9, y + 0)
+    ctx.lineTo(x - 14 - Math.sin(armSwing) * 4, y + 10 + Math.sin(armSwing) * 3)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(x + 8, y - 5)
-    ctx.lineTo(x + 13 + Math.sin(armSwing) * 4, y + 6 - Math.sin(armSwing) * 3)
+    ctx.moveTo(x + 9, y + 0)
+    ctx.lineTo(x + 14 + Math.sin(armSwing) * 4, y + 10 - Math.sin(armSwing) * 3)
     ctx.stroke()
   }
 
-  // Head (emoji)
-  ctx.font = '20px serif'
+  // Head - directly on body (no gap)
+  ctx.font = '18px serif'
   ctx.textAlign = 'center'
-  ctx.fillText(staff.emoji, x, y - 16)
+  ctx.fillText(staff.emoji, x, y - 8 + breathe)
 
   ctx.restore()
 }

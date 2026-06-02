@@ -32,6 +32,7 @@ export class Staff {
     this.sparkles = []
     this.showingAction = ''
     this.showActionTimer = 0
+    this.carryingDish = null
   }
 
   _randomName() {
@@ -111,14 +112,17 @@ export class Staff {
         if (this.returning) {
           this.returning = false
           this.moving = false
+          this.carryingDish = null
         } else if (this.moving) {
           this.moving = false
           this.actionAnim = 30
+          this.carryingDish = null
         }
       } else {
         this.x += (dx / dist) * speed
         this.y += (dy / dist) * speed
       }
+      return null
     }
 
     // Action animation countdown
@@ -131,6 +135,7 @@ export class Staff {
       return null
     }
 
+    // Only count down busy timer when staff has arrived (not moving)
     if (this.busy) {
       this.busyTimer--
       if (this.busyTimer <= 0) {
@@ -143,7 +148,6 @@ export class Staff {
         this.targetX = this.homeX
         this.targetY = this.homeY
         this.returning = true
-        // Spawn action sparkles
         this._spawnSparkles()
         return result
       }
@@ -160,13 +164,17 @@ export class Staff {
       this.targetX = target.x - 25
       this.targetY = target.y + 15
       this.moving = true
+      // Set carrying dish if serving
+      if (this.type === 'waiter' && target.state === 'ready_to_serve' && target.orderedDish) {
+        this.carryingDish = target.orderedDish.emoji || '🍲'
+      }
       // Mark customer as being served
       target._beingServedBy = this
       const actionLabel = this.type === 'waiter'
         ? (target.state === 'ready_to_serve' ? '上菜中' : '点单中')
         : '结账中'
       this.showingAction = actionLabel
-      this.showActionTimer = this.busyTimer + 30
+      this.showActionTimer = this.busyTimer + 60
       return { type: 'started', staff: this, customer: target }
     }
 

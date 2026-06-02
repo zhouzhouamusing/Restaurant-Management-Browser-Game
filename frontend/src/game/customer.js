@@ -335,10 +335,10 @@ export class Customer {
 
   getBounds() {
     return {
-      x: this.x - 30,
-      y: this.y - 55,
-      width: 60,
-      height: 70
+      x: this.x - 20,
+      y: this.y - 20,
+      width: 40,
+      height: 50
     }
   }
 
