@@ -273,7 +273,7 @@ const handleSubmit = async () => {
   font-size: 30px;
   font-weight: 800;
   color: #d35400;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   text-shadow: 2px 2px 0 rgba(211, 84, 0, 0.1);
   margin: 4px 0;
 }
@@ -321,7 +321,7 @@ const handleSubmit = async () => {
   font-size: 14px;
   color: #333;
   outline: none;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .game-input::placeholder {
@@ -342,7 +342,7 @@ const handleSubmit = async () => {
   border-radius: 14px;
   font-size: 16px;
   font-weight: 700;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   color: white;
   background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
   cursor: pointer;
@@ -398,6 +398,6 @@ const handleSubmit = async () => {
   background: #fff;
   color: #d35400;
   border: 1px solid #fce4c0;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 </style>

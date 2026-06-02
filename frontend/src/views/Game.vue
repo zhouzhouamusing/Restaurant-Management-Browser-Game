@@ -237,6 +237,10 @@ onMounted(async () => {
     const totalSalary = gameState.staff.reduce((sum, s) => sum + s.getSalary(), 0)
     if (totalSalary > 0 && gameState.coins >= totalSalary) {
       gameState.coins -= totalSalary
+      canvasRef.value?.triggerSalaryEffect(totalSalary)
+      showToast('💸', `支付员工薪资 -${totalSalary} 金币`, 'salary')
+    } else if (totalSalary > 0 && gameState.coins < totalSalary) {
+      showToast('⚠️', '金币不足以支付薪资！', 'error')
     }
   }, 60000)
 })
@@ -458,7 +462,7 @@ function logout() {
 .tab-label {
   font-size: 10px;
   color: #95a5a6;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   font-weight: 600;
   transition: color 0.3s;
 }
@@ -516,7 +520,7 @@ function logout() {
   font-size: 18px;
   font-weight: bold;
   color: #d35400;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .close-btn {
@@ -562,7 +566,7 @@ function logout() {
   font-size: 14px;
   font-weight: 600;
   color: #5d4037;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .checkout-bill-detail {
@@ -643,7 +647,7 @@ function logout() {
   color: white;
   font-size: 16px;
   font-weight: 700;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
@@ -681,7 +685,7 @@ function logout() {
   backdrop-filter: blur(10px);
   color: white;
   font-size: 13px;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   white-space: nowrap;
 }
@@ -696,6 +700,19 @@ function logout() {
 
 .toast-item.staff {
   background: rgba(52, 152, 219, 0.85);
+}
+
+.toast-item.salary {
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 0.9));
+  animation: salaryShake 0.4s ease;
+}
+
+@keyframes salaryShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
 }
 
 .toast-item.levelup {

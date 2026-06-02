@@ -1,12 +1,10 @@
 /**
- * 员工系统 - 服务员和收银员
- * 服务员: 自动接单和上菜，减少顾客等待时间
- * 收银员: 自动收银结账
+ * 员工系统 - 服务员和收银员（带角色动画和移动）
  */
 export class Staff {
   constructor(type, id) {
     this.id = id
-    this.type = type // 'waiter' | 'cashier'
+    this.type = type
     this.level = 1
     this.proficiency = 0
     this.maxProficiency = 100
@@ -14,9 +12,26 @@ export class Staff {
     this.emoji = type === 'waiter' ? '🧑‍🍳' : '💁'
     this.busy = false
     this.busyTimer = 0
+    this.busyMaxTimer = 0
     this.targetCustomer = null
     this.actionCooldown = 0
     this.totalServed = 0
+
+    // Animation state
+    this.x = 0
+    this.y = 0
+    this.homeX = 0
+    this.homeY = 0
+    this.targetX = 0
+    this.targetY = 0
+    this.moving = false
+    this.returning = false
+    this.animPhase = Math.random() * Math.PI * 2
+    this.walkFrame = 0
+    this.actionAnim = 0
+    this.sparkles = []
+    this.showingAction = ''
+    this.showActionTimer = 0
   }
 
   _randomName() {
@@ -27,6 +42,15 @@ export class Staff {
       const names = ['小芳', '阿玲', '小慧', '小敏', '阿秀', '小琴', '小燕', '小雪']
       return names[Math.floor(Math.random() * names.length)]
     }
+  }
+
+  setHomePosition(x, y) {
+    this.homeX = x
+    this.homeY = y
+    this.x = x
+    this.y = y
+    this.targetX = x
+    this.targetY = y
   }
 
   getEfficiency() {
@@ -62,6 +86,46 @@ export class Staff {
   }
 
   update(customers, engine) {
+    this.animPhase += 0.06
+    this.walkFrame++
+
+    // Update sparkles
+    this.sparkles = this.sparkles.filter(sp => {
+      sp.life--
+      sp.y -= 0.5
+      sp.alpha = sp.life / sp.maxLife
+      return sp.life > 0
+    })
+
+    if (this.showActionTimer > 0) this.showActionTimer--
+
+    // Handle movement animation
+    if (this.moving || this.returning) {
+      const speed = 3.5
+      const dx = this.targetX - this.x
+      const dy = this.targetY - this.y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < speed) {
+        this.x = this.targetX
+        this.y = this.targetY
+        if (this.returning) {
+          this.returning = false
+          this.moving = false
+        } else if (this.moving) {
+          this.moving = false
+          this.actionAnim = 30
+        }
+      } else {
+        this.x += (dx / dist) * speed
+        this.y += (dy / dist) * speed
+      }
+    }
+
+    // Action animation countdown
+    if (this.actionAnim > 0) {
+      this.actionAnim--
+    }
+
     if (this.actionCooldown > 0) {
       this.actionCooldown--
       return null
@@ -75,6 +139,12 @@ export class Staff {
         this.actionCooldown = Math.floor(30 / this.getEfficiency())
         this.addProficiency(1)
         this.totalServed++
+        // Return home
+        this.targetX = this.homeX
+        this.targetY = this.homeY
+        this.returning = true
+        // Spawn action sparkles
+        this._spawnSparkles()
         return result
       }
       return null
@@ -85,15 +155,39 @@ export class Staff {
       this.targetCustomer = target
       this.busy = true
       this.busyTimer = this.getActionSpeed()
+      this.busyMaxTimer = this.busyTimer
+      // Move towards customer
+      this.targetX = target.x - 25
+      this.targetY = target.y + 15
+      this.moving = true
+      // Mark customer as being served
+      target._beingServedBy = this
+      const actionLabel = this.type === 'waiter'
+        ? (target.state === 'ready_to_serve' ? '上菜中' : '点单中')
+        : '结账中'
+      this.showingAction = actionLabel
+      this.showActionTimer = this.busyTimer + 30
       return { type: 'started', staff: this, customer: target }
     }
 
     return null
   }
 
+  _spawnSparkles() {
+    for (let i = 0; i < 5; i++) {
+      this.sparkles.push({
+        x: this.x + (Math.random() - 0.5) * 20,
+        y: this.y - 10 + (Math.random() - 0.5) * 10,
+        life: 25 + Math.random() * 15,
+        maxLife: 40,
+        alpha: 1,
+        size: 2 + Math.random() * 2
+      })
+    }
+  }
+
   _findTarget(customers) {
     if (this.type === 'waiter') {
-      // 服务员优先上菜，其次接单
       let readyToServe = customers.filter(c => c.state === 'ready_to_serve' && !c._staffAssigned)
       if (readyToServe.length > 0) {
         const target = readyToServe.sort((a, b) => a.patience - b.patience)[0]
@@ -121,6 +215,7 @@ export class Staff {
     if (!this.targetCustomer) return null
     const customer = this.targetCustomer
     this.targetCustomer = null
+    customer._beingServedBy = null
 
     if (this.type === 'waiter') {
       if (customer.state === 'waiting_to_order') {

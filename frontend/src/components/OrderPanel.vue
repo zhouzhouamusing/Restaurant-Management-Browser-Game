@@ -119,7 +119,7 @@ defineEmits(['confirm', 'close'])
   font-size: 17px;
   font-weight: bold;
   color: #d35400;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .close-btn {
@@ -167,7 +167,7 @@ defineEmits(['confirm', 'close'])
   font-size: 14px;
   font-weight: 700;
   color: #5d4037;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .customer-dialogue {
@@ -186,7 +186,7 @@ defineEmits(['confirm', 'close'])
   color: #e67e22;
   font-weight: 600;
   margin-bottom: 8px;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .wanted-card {
@@ -237,7 +237,7 @@ defineEmits(['confirm', 'close'])
   font-size: 15px;
   font-weight: 700;
   color: #5d4037;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .wanted-meta {
@@ -260,7 +260,7 @@ defineEmits(['confirm', 'close'])
   font-weight: 700;
   padding: 6px 14px;
   border-radius: 12px;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   box-shadow: 0 2px 8px rgba(39, 174, 96, 0.3);
 }
 
@@ -319,7 +319,7 @@ defineEmits(['confirm', 'close'])
   font-size: 12px;
   font-weight: 600;
   color: #5d4037;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .menu-meta {

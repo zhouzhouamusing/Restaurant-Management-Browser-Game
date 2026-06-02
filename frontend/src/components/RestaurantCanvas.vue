@@ -94,7 +94,11 @@ function checkout(customer) {
   return 0
 }
 
-defineExpose({ confirmOrder, serveDish, checkout })
+function triggerSalaryEffect(amount) {
+  if (engine) engine.triggerSalaryEffect(amount)
+}
+
+defineExpose({ confirmOrder, serveDish, checkout, triggerSalaryEffect })
 </script>
 
 <style scoped>
@@ -127,7 +131,7 @@ canvas {
   border-radius: 18px;
   font-size: 12px;
   backdrop-filter: blur(6px);
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }

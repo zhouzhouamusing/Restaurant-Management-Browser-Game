@@ -88,7 +88,7 @@ const lockedDishes = computed(() => {
   font-size: 15px;
   margin-bottom: 12px;
   text-align: center;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .section-label {
@@ -188,7 +188,7 @@ const lockedDishes = computed(() => {
   color: #ecf0f1;
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .dish-stats {

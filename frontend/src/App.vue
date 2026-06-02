@@ -3,7 +3,7 @@
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=ZCOOL+KuaiLe&display=swap');
 
 * {
   margin: 0;
@@ -18,7 +18,7 @@ html, body, #app {
 }
 
 body {
-  font-family: 'Nunito', 'Comic Sans MS', 'Segoe UI', cursive, sans-serif;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', 'Comic Sans MS', cursive, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -26,7 +26,7 @@ body {
 /* Global element-plus overrides */
 .el-message {
   border-radius: 16px !important;
-  font-family: 'Nunito', 'Comic Sans MS', cursive !important;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive !important;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15) !important;
 }
 
@@ -60,5 +60,10 @@ body {
 @keyframes sparkle {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+@keyframes gentleBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 </style>

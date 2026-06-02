@@ -122,7 +122,7 @@ const totalSalary = computed(() => {
   color: #74b9ff;
   font-size: 15px;
   margin-bottom: 12px;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .title-icon {
@@ -202,7 +202,7 @@ const totalSalary = computed(() => {
   color: #ecf0f1;
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .staff-role {
@@ -329,7 +329,7 @@ const totalSalary = computed(() => {
   color: #ecf0f1;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .hire-desc {

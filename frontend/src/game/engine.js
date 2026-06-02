@@ -1,6 +1,8 @@
 import { Customer } from './customer.js'
 import { Restaurant } from './restaurant.js'
 
+const FONT = '"ZCOOL KuaiLe", "Nunito", "Comic Sans MS", cursive'
+
 export class GameEngine {
   constructor(canvas, options = {}) {
     this.canvas = canvas
@@ -20,10 +22,14 @@ export class GameEngine {
     this.onEarnCoins = options.onEarnCoins || (() => {})
     this.onServeCustomer = options.onServeCustomer || (() => {})
     this.onStaffAction = options.onStaffAction || (() => {})
+    this.onSalaryPaid = options.onSalaryPaid || (() => {})
 
     this.dishes = options.dishes || []
     this.staff = []
     this.billHistory = []
+
+    // Salary visual effect
+    this.salaryEffect = null
 
     this._bindEvents()
   }
@@ -86,6 +92,47 @@ export class GameEngine {
 
   updateStaff(staff) {
     this.staff = staff
+    this._assignStaffPositions()
+  }
+
+  _assignStaffPositions() {
+    const h = this.canvas.height
+    const cy = h - 70
+    let wx = 60
+    for (const s of this.staff) {
+      if (s.homeX === 0 && s.homeY === 0) {
+        s.setHomePosition(wx, cy - 20)
+        wx += 40
+      }
+    }
+  }
+
+  triggerSalaryEffect(amount) {
+    this.salaryEffect = { amount, life: 90, maxLife: 90 }
+    // Spawn red particles from HUD area downward
+    for (let i = 0; i < 6; i++) {
+      this.particles.push({
+        x: this.canvas.width / 2 + (Math.random() - 0.5) * 60,
+        y: 10,
+        vx: (Math.random() - 0.5) * 2,
+        vy: Math.random() * 2 + 1,
+        life: 50,
+        maxLife: 50,
+        alpha: 1,
+        color: '#e74c3c',
+        size: Math.random() * 3 + 2
+      })
+    }
+    this.floatingTexts.push({
+      x: this.canvas.width / 2,
+      y: 50,
+      text: `💸 -${amount} 薪资支出`,
+      color: '#e74c3c',
+      size: 16,
+      life: 80,
+      maxLife: 80,
+      alpha: 1
+    })
   }
 
   _loop() {
@@ -124,6 +171,12 @@ export class GameEngine {
       }
     }
 
+    // Salary effect
+    if (this.salaryEffect) {
+      this.salaryEffect.life--
+      if (this.salaryEffect.life <= 0) this.salaryEffect = null
+    }
+
     this.particles = this.particles.filter(p => {
       p.x += p.vx
       p.y += p.vy
@@ -134,7 +187,7 @@ export class GameEngine {
     })
 
     this.floatingTexts = this.floatingTexts.filter(t => {
-      t.y -= 1
+      t.y -= 0.8
       t.life--
       t.alpha = t.life / t.maxLife
       return t.life > 0
@@ -220,13 +273,26 @@ export class GameEngine {
   _spawnStaffEffect(x, y, staff) {
     this.floatingTexts.push({
       x, y: y - 10,
-      text: `${staff.emoji} ${staff.name}`,
+      text: `✨ ${staff.name} 完成!`,
       color: '#3498db',
       size: 14,
-      life: 50,
-      maxLife: 50,
+      life: 55,
+      maxLife: 55,
       alpha: 1
     })
+    for (let i = 0; i < 6; i++) {
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 20,
+        y: y,
+        vx: (Math.random() - 0.5) * 3,
+        vy: -Math.random() * 3 - 0.5,
+        life: 30,
+        maxLife: 30,
+        alpha: 1,
+        color: ['#74b9ff', '#a29bfe', '#81ecec'][Math.floor(Math.random() * 3)],
+        size: Math.random() * 4 + 1.5
+      })
+    }
   }
 
   _render() {
@@ -240,10 +306,11 @@ export class GameEngine {
     this._drawDecorations(ctx)
     this._drawTables(ctx)
     this._drawCustomers(ctx)
+    this._drawStaffCharacters(ctx)
     this._drawParticles(ctx)
     this._drawFloatingTexts(ctx)
     this._drawCashierCounter(ctx, w, h)
-    this._drawStaffArea(ctx, w, h)
+    this._drawSalaryEffect(ctx, w, h)
   }
 
   _drawBackground(ctx, w, h) {
@@ -287,7 +354,7 @@ export class GameEngine {
     this._drawWindow(ctx, w - 180, 60, 100, 85)
 
     ctx.save()
-    ctx.font = 'bold 26px "Comic Sans MS", cursive'
+    ctx.font = `bold 26px ${FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = '#d35400'
     ctx.shadowColor = 'rgba(211, 84, 0, 0.3)'
@@ -298,7 +365,7 @@ export class GameEngine {
     const pulse = Math.sin(Date.now() * 0.003) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = pulse
-    ctx.font = '14px "Comic Sans MS", cursive'
+    ctx.font = `14px ${FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = '#27ae60'
     ctx.fillText('✨ 营业中 ✨', w / 2, 64)
@@ -386,7 +453,7 @@ export class GameEngine {
         ctx.fillText(flower, seat.x, seat.y + 2)
       }
 
-      ctx.font = '10px "Comic Sans MS", cursive'
+      ctx.font = `10px ${FONT}`
       ctx.fillStyle = 'rgba(0,0,0,0.2)'
       ctx.textAlign = 'center'
       ctx.fillText(`${i + 1}号桌`, seat.x, seat.y + 50)
@@ -401,6 +468,7 @@ export class GameEngine {
       const bounce = Math.sin(c.bouncePhase) * 2.5
       const y = c.y + bounce
 
+      // Highlight glow
       if (c.highlighted) {
         ctx.beginPath()
         ctx.arc(c.x, y - 15, 34, 0, Math.PI * 2)
@@ -414,21 +482,31 @@ export class GameEngine {
         ctx.stroke()
       }
 
+      // "Being served" indicator
+      if (c._beingServedBy && c._beingServedBy.busy) {
+        this._drawServingIndicator(ctx, c, c.x, y)
+      }
+
+      // Customer emoji
       ctx.font = '34px serif'
       ctx.textAlign = 'center'
       ctx.fillText(c.emoji, c.x, y - 10)
 
+      // Mood
       ctx.font = '15px serif'
       ctx.fillText(c.getMoodEmoji(), c.x + 22, y - 38)
 
+      // Patience bar
       if (c.state !== 'walking_in' && c.state !== 'leaving' && c.state !== 'paying') {
         this._drawPatienceBar(ctx, c.x, y - 58, c.patience)
       }
 
+      // Dialogue bubble
       this._drawDialogueBubble(ctx, c, c.x, y)
 
+      // Interaction hint
       if (c.clickable && c.highlighted) {
-        ctx.font = 'bold 12px "Comic Sans MS", cursive'
+        ctx.font = `bold 12px ${FONT}`
         ctx.fillStyle = '#f39c12'
         ctx.textAlign = 'center'
         const hintBounce = Math.sin(this.frameCount * 0.08) * 2
@@ -437,6 +515,57 @@ export class GameEngine {
 
       ctx.restore()
     }
+  }
+
+  _drawServingIndicator(ctx, customer, x, y) {
+    const staff = customer._beingServedBy
+    const progress = 1 - (staff.busyTimer / staff.busyMaxTimer)
+    const actionText = staff.showingAction || '服务中'
+
+    // Animated service badge above customer
+    const badgeY = y - 105
+    const pulseScale = 1 + Math.sin(this.frameCount * 0.1) * 0.05
+
+    ctx.save()
+    ctx.translate(x, badgeY)
+    ctx.scale(pulseScale, pulseScale)
+
+    // Badge background
+    ctx.beginPath()
+    ctx.roundRect(-42, -12, 84, 24, 12)
+    ctx.fillStyle = 'rgba(52, 152, 219, 0.9)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+
+    // Badge text
+    ctx.font = `bold 10px ${FONT}`
+    ctx.textAlign = 'center'
+    ctx.fillStyle = '#fff'
+    ctx.fillText(`${staff.emoji} ${actionText}`, 0, 3)
+
+    // Progress bar inside badge
+    ctx.beginPath()
+    ctx.roundRect(-36, 8, 72, 3, 2)
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.roundRect(-36, 8, 72 * progress, 3, 2)
+    ctx.fillStyle = '#fff'
+    ctx.fill()
+
+    ctx.restore()
+
+    // Small connector line
+    ctx.beginPath()
+    ctx.setLineDash([3, 3])
+    ctx.moveTo(x, badgeY + 12)
+    ctx.lineTo(x, y - 90)
+    ctx.strokeStyle = 'rgba(52, 152, 219, 0.4)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+    ctx.setLineDash([])
   }
 
   _drawPatienceBar(ctx, x, y, patience) {
@@ -465,14 +594,13 @@ export class GameEngine {
     const displayText = dialogue || label
     if (!displayText) return
 
-    ctx.font = '12px "Comic Sans MS", cursive'
+    ctx.font = `12px ${FONT}`
     const textW = ctx.measureText(displayText).width || 60
     const bw = Math.max(textW + 20, 60)
     const bh = 28
     const bx = x - bw / 2
     const by = y - 88
 
-    // Bubble background with mood color
     let bgColor = 'rgba(255,255,255,0.95)'
     let borderColor = '#e0e0e0'
     if (dialogue && customer.evaluationMood === 'angry') {
@@ -515,7 +643,7 @@ export class GameEngine {
     ctx.stroke()
 
     // Text
-    ctx.font = '11px "Comic Sans MS", cursive'
+    ctx.font = `11px ${FONT}`
     ctx.textAlign = 'center'
     ctx.fillStyle = dialogue ? '#333' : '#666'
     ctx.fillText(displayText, x, by + 18)
@@ -557,6 +685,109 @@ export class GameEngine {
     }
   }
 
+  _drawStaffCharacters(ctx) {
+    for (const s of this.staff) {
+      ctx.save()
+
+      const isMoving = s.moving || s.returning
+      const walkBob = isMoving ? Math.sin(s.walkFrame * 0.15) * 3 : Math.sin(s.animPhase) * 1.5
+      const sx = s.x
+      const sy = s.y + walkBob
+
+      // Shadow
+      ctx.beginPath()
+      ctx.ellipse(sx, sy + 18, 12, 4, 0, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(0,0,0,0.1)'
+      ctx.fill()
+
+      // Body glow when busy
+      if (s.busy && !isMoving) {
+        ctx.beginPath()
+        ctx.arc(sx, sy - 5, 22, 0, Math.PI * 2)
+        const glowIntensity = 0.15 + Math.sin(this.frameCount * 0.08) * 0.05
+        ctx.fillStyle = s.type === 'waiter'
+          ? `rgba(52, 152, 219, ${glowIntensity})`
+          : `rgba(155, 89, 182, ${glowIntensity})`
+        ctx.fill()
+      }
+
+      // Character body (bouncing/walking)
+      const tilt = isMoving ? Math.sin(s.walkFrame * 0.15) * 0.08 : 0
+      ctx.translate(sx, sy)
+      ctx.rotate(tilt)
+
+      // Staff emoji - larger for visibility
+      ctx.font = '28px serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(s.emoji, 0, -5)
+
+      ctx.rotate(-tilt)
+      ctx.translate(-sx, -sy)
+
+      // Level badge
+      ctx.beginPath()
+      ctx.roundRect(sx + 10, sy - 22, 22, 14, 7)
+      ctx.fillStyle = s.type === 'waiter' ? 'rgba(52,152,219,0.85)' : 'rgba(155,89,182,0.85)'
+      ctx.fill()
+      ctx.font = `bold 8px ${FONT}`
+      ctx.textAlign = 'center'
+      ctx.fillStyle = '#fff'
+      ctx.fillText(`Lv${s.level}`, sx + 21, sy - 12)
+
+      // Name tag
+      if (!isMoving) {
+        ctx.font = `9px ${FONT}`
+        ctx.fillStyle = 'rgba(60,60,60,0.8)'
+        ctx.textAlign = 'center'
+        ctx.fillText(s.name, sx, sy + 16)
+      }
+
+      // Action indicator when near customer
+      if (s.busy && !isMoving && s.actionAnim > 0) {
+        const actionScale = 1 + Math.sin(s.actionAnim * 0.3) * 0.2
+        ctx.save()
+        ctx.translate(sx, sy - 30)
+        ctx.scale(actionScale, actionScale)
+        ctx.font = '16px serif'
+        ctx.textAlign = 'center'
+        if (s.type === 'waiter') {
+          ctx.fillText('🍽️', 0, 0)
+        } else {
+          ctx.fillText('💰', 0, 0)
+        }
+        ctx.restore()
+      }
+
+      // Movement trail particles when walking
+      if (isMoving && this.frameCount % 4 === 0) {
+        this.particles.push({
+          x: sx + (Math.random() - 0.5) * 8,
+          y: sy + 12,
+          vx: (Math.random() - 0.5) * 0.5,
+          vy: -0.3,
+          life: 15,
+          maxLife: 15,
+          alpha: 0.6,
+          color: s.type === 'waiter' ? '#74b9ff' : '#a29bfe',
+          size: Math.random() * 2 + 1
+        })
+      }
+
+      // Sparkles
+      for (const sp of s.sparkles) {
+        ctx.save()
+        ctx.globalAlpha = sp.alpha
+        ctx.beginPath()
+        ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2)
+        ctx.fillStyle = s.type === 'waiter' ? '#74b9ff' : '#a29bfe'
+        ctx.fill()
+        ctx.restore()
+      }
+
+      ctx.restore()
+    }
+  }
+
   _drawParticles(ctx) {
     for (const p of this.particles) {
       ctx.save()
@@ -573,7 +804,7 @@ export class GameEngine {
     for (const t of this.floatingTexts) {
       ctx.save()
       ctx.globalAlpha = t.alpha
-      ctx.font = `bold ${t.size}px "Comic Sans MS", cursive`
+      ctx.font = `bold ${t.size}px ${FONT}`
       ctx.textAlign = 'center'
       ctx.fillStyle = t.color
       ctx.shadowColor = 'rgba(0,0,0,0.2)'
@@ -587,7 +818,6 @@ export class GameEngine {
     const cy = h - 70
     const counterH = 70
 
-    // Counter main body
     const grad = ctx.createLinearGradient(0, cy, 0, h)
     grad.addColorStop(0, '#7d5c3a')
     grad.addColorStop(0.2, '#6d4c2a')
@@ -598,11 +828,10 @@ export class GameEngine {
     ctx.roundRect(0, cy, w, counterH, [12, 12, 0, 0])
     ctx.fill()
 
-    // Counter top surface
     ctx.fillStyle = 'rgba(255,255,255,0.08)'
     ctx.fillRect(0, cy, w, 4)
 
-    // Cashier area on right
+    // Cashier area
     const cashierX = w - 180
     ctx.save()
     ctx.fillStyle = 'rgba(255,255,255,0.04)'
@@ -614,37 +843,32 @@ export class GameEngine {
     ctx.stroke()
     ctx.restore()
 
-    // Cash register
     ctx.font = '28px serif'
     ctx.textAlign = 'center'
     ctx.fillText('🖥️', cashierX + 40, cy + 45)
-    ctx.font = '11px "Comic Sans MS", cursive'
+    ctx.font = `11px ${FONT}`
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
     ctx.fillText('收银台', cashierX + 40, cy + 60)
 
-    // Money indicator
     ctx.font = '24px serif'
     ctx.textAlign = 'center'
     ctx.fillText('💵', cashierX + 100, cy + 40)
     ctx.fillText('🧾', cashierX + 140, cy + 40)
 
-    // Left - Kitchen area
+    // Kitchen
     ctx.font = '28px serif'
     ctx.textAlign = 'center'
     ctx.fillText('🧑‍🍳', 45, cy + 45)
-    ctx.font = '11px "Comic Sans MS", cursive'
+    ctx.font = `11px ${FONT}`
     ctx.fillStyle = 'rgba(255,255,255,0.7)'
     ctx.fillText('厨房', 45, cy + 60)
 
-    // Menu display
     ctx.font = '24px serif'
     ctx.fillText('📋', 110, cy + 40)
 
-    // Bell
     const bellBounce = Math.sin(this.frameCount * 0.06) * 1.5
     ctx.fillText('🔔', 160, cy + 38 + bellBounce)
 
-    // Dish display on counter
     const dishStartX = 210
     for (let i = 0; i < Math.min(this.dishes.length, 6); i++) {
       ctx.font = '20px serif'
@@ -653,34 +877,19 @@ export class GameEngine {
     }
   }
 
-  _drawStaffArea(ctx, w, h) {
-    if (this.staff.length === 0) return
-    const cy = h - 70
+  _drawSalaryEffect(ctx, w, h) {
+    if (!this.salaryEffect) return
+    const e = this.salaryEffect
+    const alpha = e.life / e.maxLife
 
-    // Draw active staff near counter
-    let sx = 50
-    for (const s of this.staff) {
-      const bobble = Math.sin(this.frameCount * 0.04 + s.id) * 2
-      if (s.busy) {
-        ctx.save()
-        ctx.globalAlpha = 0.6
-        ctx.font = '20px serif'
-        ctx.textAlign = 'center'
-        ctx.fillText(s.emoji, sx, cy - 15 + bobble)
-        ctx.font = '9px "Comic Sans MS", cursive'
-        ctx.fillStyle = '#3498db'
-        ctx.fillText('忙碌中...', sx, cy - 2)
-        ctx.restore()
-      } else {
-        ctx.font = '20px serif'
-        ctx.textAlign = 'center'
-        ctx.fillText(s.emoji, sx, cy - 15 + bobble)
-        ctx.font = '9px "Comic Sans MS", cursive'
-        ctx.fillStyle = 'rgba(255,255,255,0.6)'
-        ctx.textAlign = 'center'
-        ctx.fillText(s.name, sx, cy - 2)
-      }
-      sx += 35
-    }
+    // Red flash on top border
+    ctx.save()
+    ctx.globalAlpha = alpha * 0.3
+    const grad = ctx.createLinearGradient(0, 0, 0, 30)
+    grad.addColorStop(0, '#e74c3c')
+    grad.addColorStop(1, 'transparent')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, w, 30)
+    ctx.restore()
   }
 }

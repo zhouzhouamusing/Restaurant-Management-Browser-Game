@@ -126,7 +126,7 @@ function easeOut(t) {
   font-size: 13px;
   color: #ecf0f1;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .level-badge {
@@ -184,7 +184,7 @@ function easeOut(t) {
   font-size: 20px;
   font-weight: 800;
   color: #f1c40f;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   min-width: 44px;
   transition: transform 0.3s;
 }
@@ -217,7 +217,7 @@ function easeOut(t) {
   border: none;
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }

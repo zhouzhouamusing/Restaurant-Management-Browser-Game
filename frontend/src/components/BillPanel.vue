@@ -91,7 +91,7 @@ const totalTips = computed(() => {
   color: #fdcb6e;
   font-size: 15px;
   margin-bottom: 12px;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .title-icon {
@@ -123,7 +123,7 @@ const totalTips = computed(() => {
   font-size: 13px;
   font-weight: 700;
   color: #ecf0f1;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .summary-value.gold {
@@ -218,7 +218,7 @@ const totalTips = computed(() => {
   font-size: 13px;
   font-weight: 700;
   color: #f1c40f;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .bill-tip {

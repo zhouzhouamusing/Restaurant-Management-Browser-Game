@@ -67,7 +67,7 @@ function handleBuySeat() {
   font-size: 15px;
   margin-bottom: 14px;
   text-align: center;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .shop-item {
@@ -123,7 +123,7 @@ function handleBuySeat() {
   color: #ecf0f1;
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Comic Sans MS', cursive;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
 }
 
 .item-desc {
