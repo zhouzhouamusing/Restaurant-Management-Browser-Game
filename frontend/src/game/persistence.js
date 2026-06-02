@@ -1,3 +1,5 @@
+import { getDefaultDecorationState } from './decorations.js'
+
 const STORAGE_KEY_PREFIX = 'restaurant_game_state_'
 
 export function saveToLocal(userId, gameState, billHistory) {
@@ -16,6 +18,8 @@ export function saveToLocal(userId, gameState, billHistory) {
       totalServed: s.totalServed
     })),
     billHistory: (billHistory || []).slice(0, 50),
+    decorations: gameState.decorations || getDefaultDecorationState(),
+    tablePositions: gameState.tablePositions || null,
     savedAt: Date.now()
   }
   try {
@@ -29,7 +33,14 @@ export function loadFromLocal(userId) {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + userId)
     if (!raw) return null
-    return JSON.parse(raw)
+    const data = JSON.parse(raw)
+    if (!data.decorations) {
+      data.decorations = getDefaultDecorationState()
+    }
+    if (!data.tablePositions) {
+      data.tablePositions = null
+    }
+    return data
   } catch (e) {
     return null
   }

@@ -6,8 +6,11 @@
       :level="gameState.level"
       :customersServed="gameState.customersServed"
       :nickname="user.nickname"
+      :bonuses="activeBonuses"
+      :editMode="editMode"
       @save="saveGame"
       @logout="logout"
+      @toggle-edit="toggleEditMode"
     />
 
     <!-- 主游戏区域 -->
@@ -19,11 +22,17 @@
           :dishes="gameState.dishes"
           :seatCount="gameState.seatCount"
           :staff="gameState.staff"
+          :decorations="gameState.decorations"
+          :bonuses="activeBonuses"
+          :editMode="editMode"
+          :tablePositions="gameState.tablePositions"
           @customer-click="handleCustomerClick"
           @earn-coins="earnCoins"
           @serve-customer="serveCustomer"
           @staff-action="handleStaffAction"
           @bill-update="handleBillUpdate"
+          @position-changed="handlePositionChanged"
+          @toggle-edit="toggleEditMode"
         />
 
         <!-- 顾客点菜确认弹窗 -->
@@ -119,7 +128,10 @@
               v-else-if="activeTab === 'shop'"
               :coins="gameState.coins"
               :seatCount="gameState.seatCount"
+              :decorations="gameState.decorations"
               @buy-seat="buySeat"
+              @buy-decoration="buyDecoration"
+              @equip-decoration="equipDecoration"
             />
             <StaffPanel
               v-else-if="activeTab === 'staff'"
@@ -140,11 +152,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { gameApi } from '../api'
 import { Staff, getHireCost } from '../game/staff.js'
 import { saveToLocal, loadFromLocal } from '../game/persistence.js'
+import { getDefaultDecorationState } from '../game/decorations.js'
+import { calculateBonuses } from '../game/bonus-calculator.js'
 import GameHUD from '../components/GameHUD.vue'
 import RestaurantCanvas from '../components/RestaurantCanvas.vue'
 import DishManager from '../components/DishManager.vue'
@@ -181,8 +195,22 @@ const gameState = reactive({
   ],
   customersServed: 0,
   seatCount: 4,
-  staff: []
+  staff: [],
+  decorations: getDefaultDecorationState(),
+  tablePositions: null
 })
+
+const editMode = ref(false)
+
+const activeBonuses = computed(() => calculateBonuses(gameState.decorations))
+
+watch(activeBonuses, (bonuses) => {
+  canvasRef.value?.updateBonuses(bonuses.tipBonus, bonuses.patienceBonus)
+}, { deep: true })
+
+watch(() => gameState.decorations, (deco) => {
+  canvasRef.value?.updateDecorationState(deco)
+}, { deep: true })
 
 const orderPanel = reactive({
   visible: false,
@@ -248,6 +276,8 @@ onMounted(async () => {
       staffIdCounter = Math.max(...localSave.staff.map(s => s.id), 0)
     }
     if (localSave.billHistory) billHistory.value = localSave.billHistory
+    if (localSave.decorations) gameState.decorations = localSave.decorations
+    if (localSave.tablePositions) gameState.tablePositions = localSave.tablePositions
   } else if (backendSave) {
     gameState.coins = backendSave.coins
     gameState.level = backendSave.level
@@ -264,6 +294,13 @@ onMounted(async () => {
     }
     if (backendSave.billHistory) {
       try { billHistory.value = JSON.parse(backendSave.billHistory) } catch (e) {}
+    }
+    if (backendSave.decorationData) {
+      try {
+        const decoData = JSON.parse(backendSave.decorationData)
+        if (decoData.decorations) gameState.decorations = decoData.decorations
+        if (decoData.tablePositions) gameState.tablePositions = decoData.tablePositions
+      } catch (e) {}
     }
   }
 
@@ -383,6 +420,68 @@ function buySeat(cost) {
   }
 }
 
+function buyDecoration(item) {
+  if (gameState.coins < item.cost) {
+    showToast('❌', '金币不足！', 'error')
+    return
+  }
+  gameState.coins -= item.cost
+  gameState.decorations.owned.push(item.id)
+
+  if (item.category === 'wallpaper') {
+    gameState.decorations.activeWallpaper = item.id
+    showToast('🎨', `已购买并使用「${item.name}」`, 'success')
+  } else if (item.category === 'floor') {
+    gameState.decorations.activeFloor = item.id
+    showToast('🏠', `已购买并使用「${item.name}」`, 'success')
+  } else {
+    gameState.decorations.placed.push({
+      id: item.id,
+      x: item.defaultPos?.x || 0.5,
+      y: item.defaultPos?.y || 0.5
+    })
+    showToast('✨', `已购买「${item.name}」并放置到餐厅`, 'success')
+  }
+}
+
+function equipDecoration(item) {
+  if (item.category === 'wallpaper') {
+    gameState.decorations.activeWallpaper = item.id
+    showToast('🎨', `已切换墙纸为「${item.name}」`, 'info')
+  } else if (item.category === 'floor') {
+    gameState.decorations.activeFloor = item.id
+    showToast('🏠', `已切换地板为「${item.name}」`, 'info')
+  }
+}
+
+function toggleEditMode() {
+  editMode.value = !editMode.value
+  canvasRef.value?.setEditMode(editMode.value)
+  if (editMode.value) {
+    showToast('✏️', '进入编辑模式，拖动家具调整位置', 'info')
+  }
+}
+
+function handlePositionChanged(data) {
+  if (data.type === 'table') {
+    if (!gameState.tablePositions) {
+      const w = canvasRef.value?.getCanvasSize?.()?.w || 800
+      const h = canvasRef.value?.getCanvasSize?.()?.h || 600
+      gameState.tablePositions = []
+      for (let i = 0; i < gameState.seatCount; i++) {
+        gameState.tablePositions.push(null)
+      }
+    }
+    gameState.tablePositions[data.index] = { x: data.x, y: data.y }
+  } else if (data.type === 'decoration') {
+    const placed = gameState.decorations.placed[data.index]
+    if (placed) {
+      placed.x = data.x
+      placed.y = data.y
+    }
+  }
+}
+
 function hireStaff(type) {
   const count = gameState.staff.filter(s => s.type === type).length
   const cost = getHireCost(type, count)
@@ -421,7 +520,11 @@ async function saveGame() {
         id: s.id, type: s.type, level: s.level,
         proficiency: s.proficiency, name: s.name, totalServed: s.totalServed
       }))),
-      billHistory: JSON.stringify(billHistory.value.slice(0, 50))
+      billHistory: JSON.stringify(billHistory.value.slice(0, 50)),
+      decorationData: JSON.stringify({
+        decorations: gameState.decorations,
+        tablePositions: gameState.tablePositions
+      })
     })
     saveToLocal(user.id, gameState, billHistory.value)
     showToast('💾', '存档成功！', 'success')

@@ -30,6 +30,10 @@
     </div>
 
     <div class="hud-section hud-right">
+      <div class="bonus-display" v-if="bonuses && (bonuses.tipBonus > 0 || bonuses.patienceBonus > 0)">
+        <span class="bonus-tag" v-if="bonuses.tipBonus > 0">💰+{{ Math.round(bonuses.tipBonus * 100) }}%</span>
+        <span class="bonus-tag patience" v-if="bonuses.patienceBonus > 0">⏳+{{ Math.round(bonuses.patienceBonus * 100) }}%</span>
+      </div>
       <button class="hud-btn save-btn" @click="$emit('save')">
         <span class="btn-icon">💾</span>
         <span class="btn-text">存档</span>
@@ -49,10 +53,12 @@ const props = defineProps({
   coins: { type: Number, default: 0 },
   level: { type: Number, default: 1 },
   customersServed: { type: Number, default: 0 },
-  nickname: { type: String, default: '' }
+  nickname: { type: String, default: '' },
+  bonuses: { type: Object, default: () => ({ tipBonus: 0, patienceBonus: 0 }) },
+  editMode: { type: Boolean, default: false }
 })
 
-defineEmits(['save', 'logout'])
+defineEmits(['save', 'logout', 'toggle-edit'])
 
 const animatedCoins = ref(props.coins)
 const coinBump = ref(false)
@@ -257,5 +263,28 @@ function easeOut(t) {
   transform: translateY(-2px);
   background: linear-gradient(135deg, #e74c3c, #c0392b);
   box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.bonus-display {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.bonus-tag {
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+  background: rgba(241, 196, 15, 0.12);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.25);
+}
+
+.bonus-tag.patience {
+  background: rgba(46, 204, 113, 0.12);
+  color: #2ecc71;
+  border-color: rgba(46, 204, 113, 0.25);
 }
 </style>

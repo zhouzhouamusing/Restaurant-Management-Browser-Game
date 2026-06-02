@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS `game_save` (
     `seat_count` INT DEFAULT 4 COMMENT '座位数量',
     `staff_data` TEXT COMMENT '员工数据JSON',
     `bill_history` TEXT COMMENT '账单历史JSON',
+    `decoration_data` TEXT COMMENT '装饰数据JSON(墙纸/地板/摆件/桌位)',
     `save_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '存档时间',
     `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_user_id (`user_id`)

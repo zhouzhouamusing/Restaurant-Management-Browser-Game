@@ -4,7 +4,7 @@
 import { getRandomBodyColor } from './character-renderer.js'
 
 export class Customer {
-  constructor(id, seatIndex, tablePos, availableDishes) {
+  constructor(id, seatIndex, tablePos, availableDishes, bonuses = {}) {
     this.id = id
     this.seatIndex = seatIndex
     this.state = 'walking_in'
@@ -14,7 +14,8 @@ export class Customer {
     this.targetY = tablePos.y
     this.alpha = 1
     this.patience = 100
-    this.patienceDecay = 0.012
+    this.patienceDecay = 0.012 * (1 - Math.min(bonuses.patienceBonus || 0, 0.50))
+    this.tipBonusFromDecor = bonuses.tipBonus || 0
     this.orderedDish = null
     this.cookProgress = 0
     this.cookDuration = 0
@@ -311,7 +312,7 @@ export class Customer {
 
   getPayment() {
     if (!this.orderedDish) return 0
-    return Math.floor(this.orderedDish.price * this.tipMultiplier)
+    return Math.floor(this.orderedDish.price * this.tipMultiplier * (1 + this.tipBonusFromDecor))
   }
 
   isDone() {

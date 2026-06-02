@@ -14,6 +14,7 @@ public class GameSave {
     private Integer seatCount;
     private String staffData;
     private String billHistory;
+    private String decorationData;
     private LocalDateTime saveTime;
     private LocalDateTime updateTime;
 }
