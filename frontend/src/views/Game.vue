@@ -175,9 +175,9 @@ const gameState = reactive({
   coins: 100,
   level: 1,
   dishes: [
-    { id: 1, name: '蛋炒饭', price: 10, cookTime: 3, emoji: '🍚' },
-    { id: 2, name: '番茄汤', price: 8, cookTime: 2, emoji: '🍅' },
-    { id: 3, name: '红烧肉', price: 20, cookTime: 5, emoji: '🥩' }
+    { id: 1, name: '蛋炒饭', price: 10, cookTime: 3, emoji: '🍛' },
+    { id: 2, name: '番茄汤', price: 8, cookTime: 2, emoji: '🍲' },
+    { id: 3, name: '红烧肉', price: 20, cookTime: 5, emoji: '🍖' }
   ],
   customersServed: 0,
   seatCount: 4,

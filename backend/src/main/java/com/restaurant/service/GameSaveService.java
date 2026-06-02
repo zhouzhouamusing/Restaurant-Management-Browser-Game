@@ -18,7 +18,7 @@ public class GameSaveService {
             save.setUserId(userId);
             save.setCoins(100);
             save.setLevel(1);
-            save.setDishes("[{\"id\":1,\"name\":\"蛋炒饭\",\"price\":10,\"cookTime\":3,\"emoji\":\"🍚\"},{\"id\":2,\"name\":\"番茄汤\",\"price\":8,\"cookTime\":2,\"emoji\":\"🍅\"},{\"id\":3,\"name\":\"红烧肉\",\"price\":20,\"cookTime\":5,\"emoji\":\"🥩\"}]");
+            save.setDishes("[{\"id\":1,\"name\":\"蛋炒饭\",\"price\":10,\"cookTime\":3,\"emoji\":\"🍛\"},{\"id\":2,\"name\":\"番茄汤\",\"price\":8,\"cookTime\":2,\"emoji\":\"🍲\"},{\"id\":3,\"name\":\"红烧肉\",\"price\":20,\"cookTime\":5,\"emoji\":\"🍖\"}]");
             save.setCustomersServed(0);
             save.setSeatCount(4);
             save.setStaffData("[]");

@@ -62,10 +62,10 @@ const props = defineProps({
 defineEmits(['unlock-dish'])
 
 const allDishes = [
-  { id: 4, name: '宫保鸡丁', price: 18, cookTime: 4, emoji: '🍗', unlockCost: 50 },
-  { id: 5, name: '鱼香肉丝', price: 16, cookTime: 4, emoji: '🥘', unlockCost: 60 },
-  { id: 6, name: '麻婆豆腐', price: 12, cookTime: 3, emoji: '🫕', unlockCost: 40 },
-  { id: 7, name: '北京烤鸭', price: 38, cookTime: 7, emoji: '🦆', unlockCost: 120 },
+  { id: 4, name: '宫保鸡丁', price: 18, cookTime: 4, emoji: '🍜', unlockCost: 50 },
+  { id: 5, name: '鱼香肉丝', price: 16, cookTime: 4, emoji: '🥡', unlockCost: 60 },
+  { id: 6, name: '麻婆豆腐', price: 12, cookTime: 3, emoji: '🥘', unlockCost: 40 },
+  { id: 7, name: '北京烤鸭', price: 38, cookTime: 7, emoji: '🍗', unlockCost: 120 },
   { id: 8, name: '珍珠奶茶', price: 15, cookTime: 2, emoji: '🧋', unlockCost: 80 },
 ]
 
