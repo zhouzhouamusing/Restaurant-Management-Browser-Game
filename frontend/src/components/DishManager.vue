@@ -163,6 +163,26 @@
         </div>
       </div>
 
+      <!-- Ingredient stock -->
+      <div class="section-label">📦 食材库存</div>
+      <div class="ingredient-grid">
+        <div
+          v-for="ing in allIngredients"
+          :key="ing.id"
+          class="ingredient-item"
+          :class="{ 'low-stock': getStock(ing.id) < 5, 'no-stock': getStock(ing.id) === 0 }"
+        >
+          <span class="ing-emoji">{{ ing.emoji }}</span>
+          <div class="ing-info">
+            <span class="ing-name">{{ ing.name }}</span>
+            <span class="ing-stock">×{{ getStock(ing.id) }}</span>
+          </div>
+          <button class="buy-btn" @click="$emit('buy-ingredient', ing.id, 10, activeSupplierForBuy)">
+            🪙{{ getBuyCost(ing.id, 10) }} ×10
+          </button>
+        </div>
+      </div>
+
       <!-- Per-dish supplier assignment -->
       <div class="section-label">🍽️ 食材配置</div>
       <div class="dish-list">
@@ -174,6 +194,11 @@
           <span class="dish-emoji">{{ dish.emoji }}</span>
           <div class="dish-detail">
             <span class="dish-name">{{ dish.name }}</span>
+            <div class="dish-ingredients-needed">
+              <span v-for="ing in getDishIngredients(dish.id)" :key="ing.id" class="ing-need-chip" :class="{ 'ing-short': getStock(ing.id) < ing.quantity }">
+                {{ ing.emoji }}×{{ ing.quantity }}
+              </span>
+            </div>
             <div class="quality-bar-container">
               <div class="quality-bar">
                 <div class="quality-fill" :style="{ width: getDishQuality(dish.id) + '%' }" :class="qualityClass(dish.id)"></div>
@@ -292,7 +317,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, isDishAvailableInSeason, isDishSeasonal, getCategoryName } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, INGREDIENT_CATALOG, isDishAvailableInSeason, isDishSeasonal, getCategoryName, getSupplierById, getBuyPrice } from '../game/dishes.js'
 
 const props = defineProps({
   dishes: { type: Array, default: () => [] },
@@ -305,12 +330,14 @@ const props = defineProps({
   supplierAssignments: { type: Object, default: () => ({}) },
   combos: { type: Array, default: () => [] },
   unlockedComboTemplates: { type: Array, default: () => [] },
-  restaurantLevel: { type: Number, default: 1 }
+  restaurantLevel: { type: Number, default: 1 },
+  ingredientStock: { type: Object, default: () => ({}) }
 })
 
 const emit = defineEmits([
   'unlock-dish', 'start-research', 'unlock-supplier',
-  'set-supplier', 'unlock-combo-template', 'create-combo', 'remove-combo'
+  'set-supplier', 'unlock-combo-template', 'create-combo', 'remove-combo',
+  'buy-ingredient'
 ])
 
 const activeSubTab = ref('menu')
@@ -380,6 +407,27 @@ const unlockedSupplierList = computed(() => {
 function isSupplierUnlocked(id) { return props.unlockedSuppliers.includes(id) }
 function getAssignedSupplier(dishId) { return props.supplierAssignments[dishId] || 'market_basic' }
 function getDishQuality(dishId) { return props.qualityMap[dishId] || 50 }
+
+// Ingredient stock helpers
+const allIngredients = Object.values(INGREDIENT_CATALOG)
+const activeSupplierForBuy = computed(() => {
+  const unlocked = props.unlockedSuppliers
+  return unlocked[unlocked.length - 1] || 'market_basic'
+})
+
+function getStock(ingredientId) { return props.ingredientStock[ingredientId] || 0 }
+function getBuyCost(ingredientId, qty) {
+  const supplier = getSupplierById(activeSupplierForBuy.value)
+  return getBuyPrice(ingredientId, qty, supplier)
+}
+function getDishIngredients(dishId) {
+  const dish = DISH_CATALOG[dishId]
+  if (!dish || !dish.ingredients) return []
+  return dish.ingredients.map(ing => ({
+    ...INGREDIENT_CATALOG[ing.ingredientId],
+    quantity: ing.quantity
+  }))
+}
 
 function qualityClass(dishId) {
   const q = getDishQuality(dishId)
@@ -918,6 +966,88 @@ function formatTime(ms) {
   padding: 4px 6px;
   cursor: pointer;
   max-width: 85px;
+}
+
+/* Ingredient grid */
+.ingredient-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.ingredient-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s;
+}
+
+.ingredient-item.low-stock {
+  border-color: rgba(243, 156, 18, 0.3);
+  background: rgba(243, 156, 18, 0.05);
+}
+
+.ingredient-item.no-stock {
+  border-color: rgba(231, 76, 60, 0.3);
+  background: rgba(231, 76, 60, 0.05);
+}
+
+.ing-emoji { font-size: 16px; }
+
+.ing-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ing-name { font-size: 10px; color: #ecf0f1; font-weight: 600; }
+.ing-stock { font-size: 9px; color: #95a5a6; }
+
+.no-stock .ing-stock { color: #e74c3c; }
+.low-stock .ing-stock { color: #f39c12; }
+
+.buy-btn {
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.15));
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.buy-btn:hover {
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.3), rgba(39, 174, 96, 0.25));
+  transform: scale(1.05);
+}
+
+.dish-ingredients-needed {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  margin: 2px 0;
+}
+
+.ing-need-chip {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #95a5a6;
+}
+
+.ing-need-chip.ing-short {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
 }
 
 /* Combos */

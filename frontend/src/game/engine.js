@@ -649,15 +649,14 @@ export class GameEngine {
     ctx.shadowColor = "rgba(135, 206, 235, 0.4)";
     ctx.shadowBlur = 12;
 
-    // Window opening with sky gradient
-    const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
-    skyGrad.addColorStop(0, '#a8d8ea');
-    skyGrad.addColorStop(0.6, '#87CEEB');
-    skyGrad.addColorStop(1, '#b8e6f0');
-    ctx.fillStyle = skyGrad;
+    // Clip to window shape for scenery
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, 6);
-    ctx.fill();
+    ctx.clip();
+
+    // Draw seasonal scenery through window
+    this._drawWindowScenery(ctx, x, y, w, h);
+
     ctx.restore();
 
     // Window sill depth
@@ -711,6 +710,202 @@ export class GameEngine {
     ctx.moveTo(x + w, y);
     ctx.quadraticCurveTo(x + w * 0.88, y + 18, x + w, y + 28);
     ctx.fill();
+  }
+
+  _drawWindowScenery(ctx, x, y, w, h) {
+    const t = Date.now() * 0.001;
+    const season = this.currentSeason;
+
+    if (season === 'spring') {
+      // Spring: soft blue sky, cherry blossom branches
+      const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
+      skyGrad.addColorStop(0, '#b3e5fc');
+      skyGrad.addColorStop(0.5, '#81d4fa');
+      skyGrad.addColorStop(1, '#c8e6c9');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(x, y, w, h);
+
+      // Green hills
+      ctx.fillStyle = '#a5d6a7';
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.3, y + h + 5, w * 0.5, h * 0.35, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#81c784';
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.7, y + h + 8, w * 0.4, h * 0.3, 0, Math.PI, 0);
+      ctx.fill();
+
+      // Cherry blossom branch
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.1, y + 5);
+      ctx.quadraticCurveTo(x + w * 0.4, y + h * 0.3, x + w * 0.7, y + h * 0.2);
+      ctx.stroke();
+
+      // Falling petals
+      ctx.fillStyle = 'rgba(255, 183, 197, 0.8)';
+      for (let i = 0; i < 6; i++) {
+        const px = x + ((t * 8 + i * 17) % w);
+        const py = y + ((t * 12 + i * 23) % h);
+        const s = 2 + Math.sin(t + i) * 1;
+        ctx.beginPath();
+        ctx.ellipse(px, py, s, s * 0.7, (t + i) * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+    } else if (season === 'summer') {
+      // Summer: bright blue sky, sun, lush green
+      const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
+      skyGrad.addColorStop(0, '#4fc3f7');
+      skyGrad.addColorStop(0.4, '#29b6f6');
+      skyGrad.addColorStop(1, '#66bb6a');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(x, y, w, h);
+
+      // Sun
+      const sunGlow = 10 + Math.sin(t * 0.5) * 2;
+      ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.8, y + h * 0.2, sunGlow, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd54f';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.8, y + h * 0.2, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Lush trees
+      ctx.fillStyle = '#388e3c';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.25, y + h * 0.65, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2e7d32';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.2, y + h * 0.58, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4caf50';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.3, y + h * 0.6, 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tree trunk
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(x + w * 0.23, y + h * 0.72, 4, h * 0.28);
+
+      // Clouds drifting
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      const cx = x + ((t * 5) % (w + 20)) - 10;
+      ctx.beginPath();
+      ctx.ellipse(cx, y + 12, 12, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(cx + 8, y + 10, 8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (season === 'autumn') {
+      // Autumn: warm orange sky, falling leaves
+      const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
+      skyGrad.addColorStop(0, '#ffe0b2');
+      skyGrad.addColorStop(0.4, '#ffcc80');
+      skyGrad.addColorStop(1, '#a1887f');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(x, y, w, h);
+
+      // Bare-ish tree
+      ctx.strokeStyle = '#4e342e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.35, y + h);
+      ctx.lineTo(x + w * 0.35, y + h * 0.4);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.35, y + h * 0.5);
+      ctx.quadraticCurveTo(x + w * 0.5, y + h * 0.35, x + w * 0.6, y + h * 0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.35, y + h * 0.45);
+      ctx.quadraticCurveTo(x + w * 0.2, y + h * 0.3, x + w * 0.1, y + h * 0.25);
+      ctx.stroke();
+
+      // Remaining orange/red foliage clusters
+      ctx.fillStyle = '#ff8a65';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.55, y + h * 0.28, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ef5350';
+      ctx.beginPath();
+      ctx.arc(x + w * 0.15, y + h * 0.22, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Falling leaves
+      const leafColors = ['#ff7043', '#ffa726', '#ef5350', '#ffca28'];
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = leafColors[i % leafColors.length];
+        const lx = x + ((t * 10 + i * 21) % w);
+        const ly = y + ((t * 15 + i * 19) % h);
+        const rot = t * 2 + i * 1.5;
+        ctx.save();
+        ctx.translate(lx, ly);
+        ctx.rotate(rot);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 3, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+    } else {
+      // Winter: gray-blue sky, snow, bare trees
+      const skyGrad = ctx.createLinearGradient(x, y, x, y + h);
+      skyGrad.addColorStop(0, '#cfd8dc');
+      skyGrad.addColorStop(0.5, '#b0bec5');
+      skyGrad.addColorStop(1, '#eceff1');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(x, y, w, h);
+
+      // Snow on ground
+      ctx.fillStyle = '#f5f5f5';
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.5, y + h + 2, w * 0.6, h * 0.2, 0, Math.PI, 0);
+      ctx.fill();
+
+      // Bare tree
+      ctx.strokeStyle = '#5d4037';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.6, y + h);
+      ctx.lineTo(x + w * 0.6, y + h * 0.35);
+      ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.6, y + h * 0.45);
+      ctx.lineTo(x + w * 0.75, y + h * 0.3);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + w * 0.6, y + h * 0.4);
+      ctx.lineTo(x + w * 0.45, y + h * 0.25);
+      ctx.stroke();
+
+      // Snow on branches
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.73, y + h * 0.29, 5, 2, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(x + w * 0.47, y + h * 0.24, 4, 2, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Falling snowflakes
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      for (let i = 0; i < 8; i++) {
+        const sx = x + ((t * 6 + i * 13) % w);
+        const sy = y + ((t * 10 + i * 11) % h);
+        const sr = 1.2 + Math.sin(t * 2 + i) * 0.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   _drawPlacedDecorations(ctx, w, h) {

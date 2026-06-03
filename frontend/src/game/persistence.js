@@ -26,6 +26,7 @@ export function saveToLocal(userId, gameState, billHistory) {
     seasonEpoch: gameState.seasonEpoch || Date.now(),
     combos: gameState.combos || [],
     unlockedComboTemplates: gameState.unlockedComboTemplates || [],
+    ingredientStock: gameState.ingredientStock || {},
     savedAt: Date.now()
   }
   try {
@@ -52,6 +53,7 @@ export function loadFromLocal(userId) {
     if (!data.seasonEpoch) data.seasonEpoch = Date.now()
     if (!data.combos) data.combos = []
     if (!data.unlockedComboTemplates) data.unlockedComboTemplates = []
+    if (!data.ingredientStock) data.ingredientStock = {}
     return data
   } catch (e) {
     return null

@@ -367,3 +367,38 @@ export function getCategoryEmoji(category) {
   const emojis = { main: '🍖', drink: '🥤', dessert: '🍰' }
   return emojis[category] || '🍽️'
 }
+
+export function canServeDish(dish, ingredientStock) {
+  if (!dish.ingredients) return true
+  for (const ing of dish.ingredients) {
+    const have = ingredientStock[ing.ingredientId] || 0
+    if (have < ing.quantity) return false
+  }
+  return true
+}
+
+export function consumeIngredients(dish, ingredientStock) {
+  if (!dish.ingredients) return
+  for (const ing of dish.ingredients) {
+    ingredientStock[ing.ingredientId] = (ingredientStock[ing.ingredientId] || 0) - ing.quantity
+  }
+}
+
+export function getMissingIngredients(dish, ingredientStock) {
+  if (!dish.ingredients) return []
+  const missing = []
+  for (const ing of dish.ingredients) {
+    const have = ingredientStock[ing.ingredientId] || 0
+    if (have < ing.quantity) {
+      const ingredient = INGREDIENT_CATALOG[ing.ingredientId]
+      missing.push({ ...ingredient, need: ing.quantity, have })
+    }
+  }
+  return missing
+}
+
+export function getBuyPrice(ingredientId, quantity, supplier) {
+  const ingredient = INGREDIENT_CATALOG[ingredientId]
+  if (!ingredient) return 0
+  return Math.ceil(ingredient.basePrice * quantity * supplier.priceMultiplier)
+}

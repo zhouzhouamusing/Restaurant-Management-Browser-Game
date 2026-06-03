@@ -37,6 +37,7 @@ export function calculateDishPayment(dish, patience, decorTipBonus, qualityScore
   const seasonalMultiplier = isSeasonal ? (1 + (dish.seasonalBonus || 0.3)) : 1
   const decorMultiplier = 1 + (decorTipBonus || 0)
   const combo = comboMultiplier || 1
+  const comboTipBonus = combo > 1 ? 1.1 : 1
 
-  return Math.floor(basePrice * tipMultiplier * qualityMultiplier * seasonalMultiplier * decorMultiplier * combo)
+  return Math.floor(basePrice * tipMultiplier * qualityMultiplier * seasonalMultiplier * decorMultiplier * combo * comboTipBonus)
 }

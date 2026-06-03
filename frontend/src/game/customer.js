@@ -3,7 +3,7 @@
  */
 import { getRandomBodyColor } from './character-renderer.js'
 import { calculateDishPayment } from './bonus-calculator.js'
-import { isDishAvailableInSeason, COMBO_TEMPLATES, DISH_CATALOG } from './dishes.js'
+import { isDishAvailableInSeason, isDishSeasonal, COMBO_TEMPLATES, DISH_CATALOG } from './dishes.js'
 
 export class Customer {
   constructor(id, seatIndex, tablePos, availableDishes, bonuses = {}, extras = {}) {
@@ -76,6 +76,10 @@ export class Customer {
 
   _pickDish(dishes) {
     if (!dishes || dishes.length === 0) return null
+    const seasonal = dishes.filter(d => isDishSeasonal(d) && d.seasons.includes(this.currentSeason))
+    if (seasonal.length > 0 && Math.random() < 0.7) {
+      return seasonal[Math.floor(Math.random() * seasonal.length)]
+    }
     return dishes[Math.floor(Math.random() * dishes.length)]
   }
 

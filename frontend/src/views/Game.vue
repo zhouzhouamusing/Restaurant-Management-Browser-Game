@@ -62,11 +62,16 @@
                 <div class="checkout-bill-detail">
                   <div class="bill-row">
                     <span>菜品</span>
-                    <span>{{ checkoutPanel.customer?.orderedDish?.emoji }} {{ checkoutPanel.customer?.orderedDish?.name }}</span>
+                    <span v-if="checkoutPanel.customer?.isComboOrder">🍱 {{ checkoutPanel.customer?.orderedCombo?.name || '套餐' }}</span>
+                    <span v-else>{{ checkoutPanel.customer?.orderedDish?.emoji }} {{ checkoutPanel.customer?.orderedDish?.name }}</span>
                   </div>
                   <div class="bill-row">
                     <span>单价</span>
-                    <span><svg class="coin-inline" viewBox="0 0 20 20" width="14" height="14"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> {{ checkoutPanel.customer?.orderedDish?.price || 0 }}</span>
+                    <span><svg class="coin-inline" viewBox="0 0 20 20" width="14" height="14"><circle cx="10" cy="10" r="8" fill="#f1c40f" stroke="#b8860b" stroke-width="1.5"/><text x="10" y="14" text-anchor="middle" font-size="9" font-weight="bold" fill="#8B6914">¥</text></svg> {{ checkoutPanel.customer?.isComboOrder ? checkoutPanel.customer?.comboDishes?.reduce((s,d) => s+d.price, 0) : (checkoutPanel.customer?.orderedDish?.price || 0) }}</span>
+                  </div>
+                  <div v-if="checkoutPanel.customer?.isComboOrder" class="bill-row combo-bonus-row">
+                    <span>🍱 套餐加成</span>
+                    <span class="combo-bonus-tag">+{{ Math.round((checkoutPanel.customer.comboMultiplier * 1.1 - 1) * 100) }}%</span>
                   </div>
                   <div class="bill-row tip-row">
                     <span>小费</span>
@@ -133,6 +138,7 @@
               :combos="gameState.combos"
               :unlockedComboTemplates="gameState.unlockedComboTemplates"
               :restaurantLevel="gameState.level"
+              :ingredientStock="gameState.ingredientStock"
               @unlock-dish="unlockDish"
               @start-research="startResearch"
               @unlock-supplier="unlockSupplier"
@@ -140,6 +146,7 @@
               @unlock-combo-template="unlockComboTemplate"
               @create-combo="createCombo"
               @remove-combo="removeCombo"
+              @buy-ingredient="buyIngredient"
             />
             <ShopPanel
               v-else-if="activeTab === 'shop'"
@@ -176,7 +183,7 @@ import { Staff, getHireCost } from '../game/staff.js'
 import { saveToLocal, loadFromLocal } from '../game/persistence.js'
 import { getDefaultDecorationState } from '../game/decorations.js'
 import { calculateBonuses, calculateDishQuality } from '../game/bonus-calculator.js'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost, canServeDish, consumeIngredients, getBuyPrice, INGREDIENT_CATALOG } from '../game/dishes.js'
 import { SeasonTimer } from '../game/season-timer.js'
 import { ResearchManager } from '../game/research.js'
 import GameHUD from '../components/GameHUD.vue'
@@ -226,7 +233,8 @@ const gameState = reactive({
   supplierAssignments: {},
   seasonEpoch: Date.now(),
   combos: [],
-  unlockedComboTemplates: []
+  unlockedComboTemplates: [],
+  ingredientStock: {}
 })
 
 const researchManager = ref(ResearchManager.fromSerialized(null))
@@ -347,6 +355,7 @@ onMounted(async () => {
     if (localSave.seasonEpoch) gameState.seasonEpoch = localSave.seasonEpoch
     if (localSave.combos) gameState.combos = localSave.combos
     if (localSave.unlockedComboTemplates) gameState.unlockedComboTemplates = localSave.unlockedComboTemplates
+    if (localSave.ingredientStock) gameState.ingredientStock = localSave.ingredientStock
   } else if (backendSave) {
     gameState.coins = backendSave.coins
     gameState.level = backendSave.level
@@ -458,9 +467,22 @@ function handleCustomerClick(customer) {
 
 function handleConfirmOrder(dish) {
   if (orderPanel.customer) {
-    canvasRef.value.confirmOrder(orderPanel.customer, dish || orderPanel.customer.wantedDish)
+    const chosenDish = dish || orderPanel.customer.wantedDish
+    const customer = orderPanel.customer
+    if (customer.isComboOrder) {
+      for (const comboDish of customer.comboDishes) {
+        if (!consumeDishIngredients(comboDish)) {
+          return
+        }
+      }
+    } else {
+      if (!consumeDishIngredients(chosenDish)) {
+        return
+      }
+    }
+    canvasRef.value.confirmOrder(customer, chosenDish)
     orderPanel.visible = false
-    showToast('📝', `${orderPanel.customer.name}点了${(dish || orderPanel.customer.wantedDish).name}`, 'info')
+    showToast('📝', `${customer.name}点了${chosenDish.name}`, 'info')
     orderPanel.customer = null
   }
 }
@@ -595,6 +617,30 @@ function removeCombo(index) {
   showToast('🗑️', '已移除套餐', 'info')
 }
 
+function buyIngredient(ingredientId, quantity, supplierId) {
+  const supplier = getSupplierById(supplierId || 'market_basic')
+  const cost = getBuyPrice(ingredientId, quantity, supplier)
+  if (gameState.coins < cost) {
+    showToast('❌', '金币不足！', 'error')
+    return
+  }
+  gameState.coins -= cost
+  const ingredient = INGREDIENT_CATALOG[ingredientId]
+  gameState.ingredientStock[ingredientId] = (gameState.ingredientStock[ingredientId] || 0) + quantity
+  showToast('🛒', `购入 ${ingredient.emoji}${ingredient.name} ×${quantity}`, 'success')
+}
+
+function consumeDishIngredients(dish) {
+  const catalogDish = DISH_CATALOG[dish.id]
+  if (!catalogDish) return true
+  if (!canServeDish(catalogDish, gameState.ingredientStock)) {
+    showToast('⚠️', `「${dish.name}」食材不足，无法上菜！`, 'error')
+    return false
+  }
+  consumeIngredients(catalogDish, gameState.ingredientStock)
+  return true
+}
+
 function buySeat(cost) {
   if (gameState.coins >= cost) {
     gameState.coins -= cost
@@ -722,7 +768,8 @@ async function saveGame() {
         supplierAssignments: gameState.supplierAssignments,
         seasonEpoch: gameState.seasonEpoch,
         combos: gameState.combos,
-        unlockedComboTemplates: gameState.unlockedComboTemplates
+        unlockedComboTemplates: gameState.unlockedComboTemplates,
+        ingredientStock: gameState.ingredientStock
       })
     })
     saveToLocal(user.id, gameState, billHistory.value)
@@ -945,6 +992,19 @@ function logout() {
 
 .tip-row {
   color: #27ae60;
+}
+
+.combo-bonus-row {
+  color: #e67e22;
+}
+
+.combo-bonus-tag {
+  font-weight: 600;
+  color: #e67e22;
+  background: #fef3e2;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.85em;
 }
 
 .tip-amount {
