@@ -23,3 +23,20 @@ export function calculateBonuses(decorationState) {
     patienceBonus: Math.min(patienceBonus, 0.50)
   }
 }
+
+export function calculateDishQuality(dish, supplierQualityBonus) {
+  const base = dish.baseQuality || 50
+  return Math.min(100, base + (supplierQualityBonus || 0))
+}
+
+export function calculateDishPayment(dish, patience, decorTipBonus, qualityScore, currentSeason, comboMultiplier) {
+  const basePrice = dish.price
+  const tipMultiplier = patience > 70 ? 1.5 : patience > 40 ? 1.2 : 1
+  const qualityMultiplier = 1 + (qualityScore / 100) * 0.5
+  const isSeasonal = dish.seasons && dish.seasons.length < 4 && dish.seasons.includes(currentSeason)
+  const seasonalMultiplier = isSeasonal ? (1 + (dish.seasonalBonus || 0.3)) : 1
+  const decorMultiplier = 1 + (decorTipBonus || 0)
+  const combo = comboMultiplier || 1
+
+  return Math.floor(basePrice * tipMultiplier * qualityMultiplier * seasonalMultiplier * decorMultiplier * combo)
+}

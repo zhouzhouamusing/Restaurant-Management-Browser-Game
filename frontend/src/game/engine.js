@@ -65,6 +65,12 @@ export class GameEngine {
     this.tipBonus = 0;
     this.patienceBonus = 0;
 
+    // Season & quality data
+    this.currentSeason = 'spring';
+    this.qualityMap = {};
+    this.combos = [];
+    this.restaurantLevel = 1;
+
     // Edit mode (drag-and-drop furniture)
     this.editMode = false;
     this.dragTarget = null;
@@ -421,8 +427,29 @@ export class GameEngine {
     const customer = new Customer(this.customerIdCounter++, seatIndex, pos, this.dishes, {
       tipBonus: this.tipBonus,
       patienceBonus: this.patienceBonus
+    }, {
+      currentSeason: this.currentSeason,
+      qualityMap: this.qualityMap,
+      combos: this.combos,
+      restaurantLevel: this.restaurantLevel
     });
     this.customers.push(customer);
+  }
+
+  updateSeasonData(season) {
+    this.currentSeason = season;
+  }
+
+  updateQualityMap(map) {
+    this.qualityMap = map;
+  }
+
+  updateCombos(combos) {
+    this.combos = combos;
+  }
+
+  updateRestaurantLevel(level) {
+    this.restaurantLevel = level;
   }
 
   confirmOrder(customer, dish) {

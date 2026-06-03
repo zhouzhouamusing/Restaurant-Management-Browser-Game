@@ -20,6 +20,12 @@ export function saveToLocal(userId, gameState, billHistory) {
     billHistory: (billHistory || []).slice(0, 50),
     decorations: gameState.decorations || getDefaultDecorationState(),
     tablePositions: gameState.tablePositions || null,
+    researchData: gameState.researchData || null,
+    unlockedSuppliers: gameState.unlockedSuppliers || ['market_basic'],
+    supplierAssignments: gameState.supplierAssignments || {},
+    seasonEpoch: gameState.seasonEpoch || Date.now(),
+    combos: gameState.combos || [],
+    unlockedComboTemplates: gameState.unlockedComboTemplates || [],
     savedAt: Date.now()
   }
   try {
@@ -40,6 +46,12 @@ export function loadFromLocal(userId) {
     if (!data.tablePositions) {
       data.tablePositions = null
     }
+    if (!data.researchData) data.researchData = null
+    if (!data.unlockedSuppliers) data.unlockedSuppliers = ['market_basic']
+    if (!data.supplierAssignments) data.supplierAssignments = {}
+    if (!data.seasonEpoch) data.seasonEpoch = Date.now()
+    if (!data.combos) data.combos = []
+    if (!data.unlockedComboTemplates) data.unlockedComboTemplates = []
     return data
   } catch (e) {
     return null

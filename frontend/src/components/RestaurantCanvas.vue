@@ -141,11 +141,27 @@ function updateBonuses(tipBonus, patienceBonus) {
   if (engine) engine.updateBonuses(tipBonus, patienceBonus)
 }
 
+function updateSeasonData(season) {
+  if (engine) engine.updateSeasonData(season)
+}
+
+function updateQualityMap(map) {
+  if (engine) engine.updateQualityMap(map)
+}
+
+function updateCombos(combos) {
+  if (engine) engine.updateCombos(combos)
+}
+
+function updateRestaurantLevel(level) {
+  if (engine) engine.updateRestaurantLevel(level)
+}
+
 function getCanvasSize() {
   return { w: canvasRef.value?.width || 800, h: canvasRef.value?.height || 600 }
 }
 
-defineExpose({ confirmOrder, serveDish, checkout, triggerSalaryEffect, setEditMode, updateDecorationState, updateBonuses, getCanvasSize })
+defineExpose({ confirmOrder, serveDish, checkout, triggerSalaryEffect, setEditMode, updateDecorationState, updateBonuses, updateSeasonData, updateQualityMap, updateCombos, updateRestaurantLevel, getCanvasSize })
 </script>
 
 <style scoped>

@@ -8,6 +8,8 @@
       :nickname="user.nickname"
       :bonuses="activeBonuses"
       :editMode="editMode"
+      :seasonTimer="seasonTimer"
+      :currentSeason="currentSeason"
       @save="saveGame"
       @logout="logout"
       @toggle-edit="toggleEditMode"
@@ -122,7 +124,22 @@
               v-if="activeTab === 'dishes'"
               :dishes="gameState.dishes"
               :coins="gameState.coins"
+              :researchManager="researchManager"
+              :seasonTimer="seasonTimer"
+              :currentSeason="currentSeason"
+              :qualityMap="qualityMap"
+              :unlockedSuppliers="gameState.unlockedSuppliers"
+              :supplierAssignments="gameState.supplierAssignments"
+              :combos="gameState.combos"
+              :unlockedComboTemplates="gameState.unlockedComboTemplates"
+              :restaurantLevel="gameState.level"
               @unlock-dish="unlockDish"
+              @start-research="startResearch"
+              @unlock-supplier="unlockSupplier"
+              @set-supplier="setSupplierForDish"
+              @unlock-combo-template="unlockComboTemplate"
+              @create-combo="createCombo"
+              @remove-combo="removeCombo"
             />
             <ShopPanel
               v-else-if="activeTab === 'shop'"
@@ -158,7 +175,10 @@ import { gameApi } from '../api'
 import { Staff, getHireCost } from '../game/staff.js'
 import { saveToLocal, loadFromLocal } from '../game/persistence.js'
 import { getDefaultDecorationState } from '../game/decorations.js'
-import { calculateBonuses } from '../game/bonus-calculator.js'
+import { calculateBonuses, calculateDishQuality } from '../game/bonus-calculator.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost } from '../game/dishes.js'
+import { SeasonTimer } from '../game/season-timer.js'
+import { ResearchManager } from '../game/research.js'
 import GameHUD from '../components/GameHUD.vue'
 import RestaurantCanvas from '../components/RestaurantCanvas.vue'
 import DishManager from '../components/DishManager.vue'
@@ -177,6 +197,9 @@ let toastId = 0
 let staffIdCounter = 0
 let salaryInterval = null
 let autoSaveInterval = null
+let researchCheckInterval = null
+let seasonCheckInterval = null
+let lastSeason = null
 
 const tabs = [
   { id: 'dishes', icon: '🍽️', label: '菜品' },
@@ -197,8 +220,18 @@ const gameState = reactive({
   seatCount: 4,
   staff: [],
   decorations: getDefaultDecorationState(),
-  tablePositions: null
+  tablePositions: null,
+  researchData: null,
+  unlockedSuppliers: ['market_basic'],
+  supplierAssignments: {},
+  seasonEpoch: Date.now(),
+  combos: [],
+  unlockedComboTemplates: []
 })
+
+const researchManager = ref(ResearchManager.fromSerialized(null))
+const seasonTimer = computed(() => new SeasonTimer(gameState.seasonEpoch))
+const currentSeason = computed(() => seasonTimer.value.getCurrentSeason())
 
 const editMode = ref(false)
 
@@ -211,6 +244,34 @@ watch(activeBonuses, (bonuses) => {
 watch(() => gameState.decorations, (deco) => {
   canvasRef.value?.updateDecorationState(deco)
 }, { deep: true })
+
+const qualityMap = computed(() => {
+  const map = {}
+  for (const dish of gameState.dishes) {
+    const catalogDish = DISH_CATALOG[dish.id]
+    if (!catalogDish) { map[dish.id] = 50; continue }
+    const supplierId = gameState.supplierAssignments[dish.id] || 'market_basic'
+    const supplier = getSupplierById(supplierId)
+    map[dish.id] = calculateDishQuality(catalogDish, supplier.qualityBonus)
+  }
+  return map
+})
+
+watch(qualityMap, (map) => {
+  canvasRef.value?.updateQualityMap(map)
+}, { deep: true })
+
+watch(currentSeason, (season) => {
+  canvasRef.value?.updateSeasonData(season)
+})
+
+watch(() => gameState.combos, (combos) => {
+  canvasRef.value?.updateCombos(combos)
+}, { deep: true })
+
+watch(() => gameState.level, (level) => {
+  canvasRef.value?.updateRestaurantLevel(level)
+})
 
 const orderPanel = reactive({
   visible: false,
@@ -225,15 +286,17 @@ const checkoutPanel = reactive({
 const checkoutTip = computed(() => {
   const c = checkoutPanel.customer
   if (!c || !c.orderedDish) return 0
-  const multiplier = c.patience > 70 ? 1.5 : c.patience > 40 ? 1.2 : 1
-  return Math.floor(c.orderedDish.price * multiplier) - c.orderedDish.price
+  const total = c.getPayment()
+  const basePrice = c.isComboOrder
+    ? c.comboDishes.reduce((sum, d) => sum + d.price, 0)
+    : c.orderedDish.price
+  return Math.max(0, total - basePrice)
 })
 
 const checkoutTotal = computed(() => {
   const c = checkoutPanel.customer
   if (!c || !c.orderedDish) return 0
-  const multiplier = c.patience > 70 ? 1.5 : c.patience > 40 ? 1.2 : 1
-  return Math.floor(c.orderedDish.price * multiplier)
+  return c.getPayment()
 })
 
 function getSatisfactionEmoji() {
@@ -278,6 +341,12 @@ onMounted(async () => {
     if (localSave.billHistory) billHistory.value = localSave.billHistory
     if (localSave.decorations) gameState.decorations = localSave.decorations
     if (localSave.tablePositions) gameState.tablePositions = localSave.tablePositions
+    if (localSave.researchData) gameState.researchData = localSave.researchData
+    if (localSave.unlockedSuppliers) gameState.unlockedSuppliers = localSave.unlockedSuppliers
+    if (localSave.supplierAssignments) gameState.supplierAssignments = localSave.supplierAssignments
+    if (localSave.seasonEpoch) gameState.seasonEpoch = localSave.seasonEpoch
+    if (localSave.combos) gameState.combos = localSave.combos
+    if (localSave.unlockedComboTemplates) gameState.unlockedComboTemplates = localSave.unlockedComboTemplates
   } else if (backendSave) {
     gameState.coins = backendSave.coins
     gameState.level = backendSave.level
@@ -322,11 +391,42 @@ onMounted(async () => {
       showToast('⚠️', '金币不足以支付薪资！', 'error')
     }
   }, 60000)
+
+  // Initialize research manager from saved data
+  researchManager.value = ResearchManager.fromSerialized(gameState.researchData)
+  checkResearchCompletion()
+
+  // Check research progress every second
+  researchCheckInterval = setInterval(() => {
+    checkResearchCompletion()
+  }, 1000)
+
+  // Check season changes every 10 seconds
+  lastSeason = currentSeason.value
+  seasonCheckInterval = setInterval(() => {
+    const now = currentSeason.value
+    if (now !== lastSeason) {
+      const { names, emojis } = { names: { spring: '春季', summer: '夏季', autumn: '秋季', winter: '冬季' }, emojis: { spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' } }
+      showToast(emojis[now], `季节更替！现在是${names[now]}`, 'info')
+      lastSeason = now
+      canvasRef.value?.updateSeasonData(now)
+    }
+  }, 10000)
+
+  // Push initial data to engine
+  setTimeout(() => {
+    canvasRef.value?.updateSeasonData(currentSeason.value)
+    canvasRef.value?.updateQualityMap(qualityMap.value)
+    canvasRef.value?.updateCombos(gameState.combos)
+    canvasRef.value?.updateRestaurantLevel(gameState.level)
+  }, 100)
 })
 
 onUnmounted(() => {
   if (salaryInterval) clearInterval(salaryInterval)
   if (autoSaveInterval) clearInterval(autoSaveInterval)
+  if (researchCheckInterval) clearInterval(researchCheckInterval)
+  if (seasonCheckInterval) clearInterval(seasonCheckInterval)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
@@ -408,6 +508,91 @@ function unlockDish(dish) {
   } else {
     showToast('❌', '金币不足！', 'error')
   }
+}
+
+function startResearch(dishId) {
+  const check = researchManager.value.canStartResearch(dishId, gameState.coins)
+  if (!check.ok) {
+    showToast('❌', check.reason, 'error')
+    return
+  }
+  const dish = DISH_CATALOG[dishId]
+  gameState.coins -= dish.research.cost
+  researchManager.value.startResearch(dishId)
+  gameState.researchData = researchManager.value.serialize()
+  showToast('🔬', `开始研发「${dish.name}」！`, 'info')
+}
+
+function checkResearchCompletion() {
+  const progress = researchManager.value.getProgress()
+  if (!progress || !progress.isComplete) return
+
+  const result = researchManager.value.completeResearch()
+  if (!result) return
+
+  const dish = DISH_CATALOG[result.dishId]
+  if (result.success) {
+    gameState.dishes.push({
+      id: dish.id, name: dish.name, price: dish.price,
+      cookTime: dish.cookTime, emoji: dish.emoji
+    })
+    showToast('🎉', `研发成功！解锁新菜品「${dish.emoji} ${dish.name}」！`, 'success')
+  } else {
+    const fails = researchManager.value.getFailCount(result.dishId)
+    showToast('💥', `研发失败...再接再厉！(已失败${fails}次，下次+${Math.min(15, fails * 5)}%)`, 'error')
+  }
+  gameState.researchData = researchManager.value.serialize()
+}
+
+function unlockSupplier(supplierId) {
+  const supplier = SUPPLIER_CATALOG.find(s => s.id === supplierId)
+  if (!supplier) return
+  if (gameState.unlockedSuppliers.includes(supplierId)) {
+    showToast('❌', '已解锁该供应商', 'error')
+    return
+  }
+  if (gameState.coins < supplier.unlockCost) {
+    showToast('❌', '金币不足！', 'error')
+    return
+  }
+  gameState.coins -= supplier.unlockCost
+  gameState.unlockedSuppliers.push(supplierId)
+  showToast('🤝', `成功签约「${supplier.emoji} ${supplier.name}」！`, 'success')
+}
+
+function setSupplierForDish(dishId, supplierId) {
+  gameState.supplierAssignments[dishId] = supplierId
+}
+
+function unlockComboTemplate(templateId) {
+  const template = COMBO_TEMPLATES.find(t => t.id === templateId)
+  if (!template) return
+  if (gameState.unlockedComboTemplates.includes(templateId)) {
+    showToast('❌', '已解锁该套餐模板', 'error')
+    return
+  }
+  if (gameState.coins < template.unlockCost) {
+    showToast('❌', '金币不足！', 'error')
+    return
+  }
+  gameState.coins -= template.unlockCost
+  gameState.unlockedComboTemplates.push(templateId)
+  showToast('🍱', `解锁套餐模板「${template.name}」！`, 'success')
+}
+
+function createCombo(templateId, dishIds, name) {
+  if (!validateCombo(templateId, dishIds)) {
+    showToast('❌', '套餐菜品搭配不正确', 'error')
+    return
+  }
+  const template = COMBO_TEMPLATES.find(t => t.id === templateId)
+  gameState.combos.push({ templateId, dishIds, name: name || template.name })
+  showToast('🎊', `创建套餐「${name || template.name}」成功！`, 'success')
+}
+
+function removeCombo(index) {
+  gameState.combos.splice(index, 1)
+  showToast('🗑️', '已移除套餐', 'info')
 }
 
 function buySeat(cost) {
@@ -530,6 +715,14 @@ async function saveGame() {
       decorationData: JSON.stringify({
         decorations: gameState.decorations,
         tablePositions: gameState.tablePositions
+      }),
+      dishSystemData: JSON.stringify({
+        researchData: gameState.researchData,
+        unlockedSuppliers: gameState.unlockedSuppliers,
+        supplierAssignments: gameState.supplierAssignments,
+        seasonEpoch: gameState.seasonEpoch,
+        combos: gameState.combos,
+        unlockedComboTemplates: gameState.unlockedComboTemplates
       })
     })
     saveToLocal(user.id, gameState, billHistory.value)

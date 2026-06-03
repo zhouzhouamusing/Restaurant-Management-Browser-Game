@@ -2,9 +2,11 @@
  * 顾客类 - 顾客自主点菜、评价系统、对话气泡
  */
 import { getRandomBodyColor } from './character-renderer.js'
+import { calculateDishPayment } from './bonus-calculator.js'
+import { isDishAvailableInSeason, COMBO_TEMPLATES, DISH_CATALOG } from './dishes.js'
 
 export class Customer {
-  constructor(id, seatIndex, tablePos, availableDishes, bonuses = {}) {
+  constructor(id, seatIndex, tablePos, availableDishes, bonuses = {}, extras = {}) {
     this.id = id
     this.seatIndex = seatIndex
     this.state = 'walking_in'
@@ -38,12 +40,28 @@ export class Customer {
     this.stateEnterTime = 0
     this.totalWaitFrames = 0
     this.availableDishes = availableDishes || []
-    this.wantedDish = this._pickDish(availableDishes)
     this.paid = false
     this.billAmount = 0
     this.entryTime = Date.now()
     this.serveWaitStart = 0
     this.payWaitStart = 0
+
+    this.currentSeason = extras.currentSeason || 'spring'
+    this.qualityMap = extras.qualityMap || {}
+    this.combos = extras.combos || []
+    this.restaurantLevel = extras.restaurantLevel || 1
+
+    this.isComboOrder = false
+    this.comboMultiplier = 1
+    this.orderedCombo = null
+    this.comboDishes = []
+
+    const seasonalDishes = availableDishes.filter(d => isDishAvailableInSeason(d, this.currentSeason))
+    const pickFrom = seasonalDishes.length > 0 ? seasonalDishes : availableDishes
+    this._maybePickCombo(pickFrom)
+    if (!this.isComboOrder) {
+      this.wantedDish = this._pickDish(pickFrom)
+    }
   }
 
   randomEmoji() {
@@ -59,6 +77,31 @@ export class Customer {
   _pickDish(dishes) {
     if (!dishes || dishes.length === 0) return null
     return dishes[Math.floor(Math.random() * dishes.length)]
+  }
+
+  _maybePickCombo(availableDishes) {
+    if (!this.combos || this.combos.length === 0) return
+    const comboChance = Math.min(0.25, 0.05 + this.restaurantLevel * 0.03)
+    if (Math.random() > comboChance) return
+
+    const validCombos = this.combos.filter(combo => {
+      const template = COMBO_TEMPLATES.find(t => t.id === combo.templateId)
+      if (!template) return false
+      return combo.dishIds.every(id => {
+        const dish = DISH_CATALOG[id]
+        return dish && availableDishes.some(d => d.id === id) && isDishAvailableInSeason(dish, this.currentSeason)
+      })
+    })
+
+    if (validCombos.length === 0) return
+
+    const chosen = validCombos[Math.floor(Math.random() * validCombos.length)]
+    const template = COMBO_TEMPLATES.find(t => t.id === chosen.templateId)
+    this.isComboOrder = true
+    this.orderedCombo = chosen
+    this.comboMultiplier = template.bonusMultiplier
+    this.comboDishes = chosen.dishIds.map(id => DISH_CATALOG[id])
+    this.wantedDish = this.comboDishes[0]
   }
 
   getMoodEmoji() {
@@ -83,6 +126,15 @@ export class Customer {
   }
 
   _generateOrderDialogue() {
+    if (this.isComboOrder && this.orderedCombo) {
+      const names = this.comboDishes.map(d => d.name).join('+')
+      const templates = [
+        `来个${this.orderedCombo.name || '套餐'}！(${names})`,
+        `我要套餐！${this.comboDishes.map(d => d.emoji).join('')}`,
+        `套餐看起来很划算~给我来一份！`
+      ]
+      return templates[Math.floor(Math.random() * templates.length)]
+    }
     const dish = this.wantedDish
     if (!dish) return '我想吃点东西~'
     const templates = [
@@ -157,10 +209,16 @@ export class Customer {
   getStateLabel() {
     switch (this.state) {
       case 'walking_in': return ''
-      case 'waiting_to_order': return `想点: ${this.wantedDish?.emoji || '🍽️'} ${this.wantedDish?.name || '菜品'}`
+      case 'waiting_to_order':
+        if (this.isComboOrder) return `想点: 🍱 套餐`
+        return `想点: ${this.wantedDish?.emoji || '🍽️'} ${this.wantedDish?.name || '菜品'}`
       case 'ordering': return '点餐中...'
-      case 'cooking': return `制作中 ${this.orderedDish?.emoji || '🍲'}`
-      case 'ready_to_serve': return `${this.orderedDish?.emoji || '🍲'} 好了！`
+      case 'cooking':
+        if (this.isComboOrder) return `制作套餐中 🍱`
+        return `制作中 ${this.orderedDish?.emoji || '🍲'}`
+      case 'ready_to_serve':
+        if (this.isComboOrder) return `🍱 套餐好了！`
+        return `${this.orderedDish?.emoji || '🍲'} 好了！`
       case 'eating': return '用餐中~'
       case 'waiting_to_pay': return '💰 要结账'
       case 'paying': return '谢谢光临！'
@@ -283,7 +341,12 @@ export class Customer {
 
   confirmOrder(dish) {
     this.orderedDish = dish || this.wantedDish
-    this.cookDuration = (dish || this.wantedDish).cookTime * 30
+    if (this.isComboOrder) {
+      const maxCook = Math.max(...this.comboDishes.map(d => d.cookTime))
+      this.cookDuration = maxCook * 30
+    } else {
+      this.cookDuration = (dish || this.wantedDish).cookTime * 30
+    }
     this.cookProgress = 0
     this.state = 'cooking'
     this.clickable = false
@@ -312,7 +375,16 @@ export class Customer {
 
   getPayment() {
     if (!this.orderedDish) return 0
-    return Math.floor(this.orderedDish.price * this.tipMultiplier * (1 + this.tipBonusFromDecor))
+    if (this.isComboOrder) {
+      let total = 0
+      for (const dish of this.comboDishes) {
+        const quality = this.qualityMap[dish.id] || dish.baseQuality || 50
+        total += calculateDishPayment(dish, this.patience, this.tipBonusFromDecor, quality, this.currentSeason, this.comboMultiplier)
+      }
+      return total
+    }
+    const quality = this.qualityMap[this.orderedDish.id] || this.orderedDish.baseQuality || 50
+    return calculateDishPayment(this.orderedDish, this.patience, this.tipBonusFromDecor, quality, this.currentSeason, 1)
   }
 
   isDone() {

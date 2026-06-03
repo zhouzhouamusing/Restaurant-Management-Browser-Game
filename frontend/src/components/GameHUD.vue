@@ -10,6 +10,11 @@
         <span class="badge-text">Lv.{{ level }}</span>
         <div class="level-glow"></div>
       </div>
+      <div class="hud-badge season-badge" :style="{ borderColor: seasonBorderColor }">
+        <span class="badge-icon">{{ seasonEmoji }}</span>
+        <span class="badge-text season-text" :style="{ color: seasonTextColor }">{{ seasonName }}</span>
+        <span class="season-time">{{ seasonTimeLeft }}</span>
+      </div>
     </div>
 
     <div class="hud-section hud-center">
@@ -47,7 +52,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 const props = defineProps({
   coins: { type: Number, default: 0 },
@@ -55,10 +60,21 @@ const props = defineProps({
   customersServed: { type: Number, default: 0 },
   nickname: { type: String, default: '' },
   bonuses: { type: Object, default: () => ({ tipBonus: 0, patienceBonus: 0 }) },
-  editMode: { type: Boolean, default: false }
+  editMode: { type: Boolean, default: false },
+  seasonTimer: { type: Object, default: null },
+  currentSeason: { type: String, default: 'spring' }
 })
 
 defineEmits(['save', 'logout', 'toggle-edit'])
+
+const seasonEmoji = computed(() => props.seasonTimer?.getSeasonEmoji?.() || '🌸')
+const seasonName = computed(() => props.seasonTimer?.getSeasonName?.() || '春季')
+const seasonTimeLeft = computed(() => props.seasonTimer?.getTimeRemainingFormatted?.() || '--:--')
+const seasonTextColor = computed(() => props.seasonTimer?.getSeasonColor?.() || '#a8e6cf')
+const seasonBorderColor = computed(() => {
+  const c = props.seasonTimer?.getSeasonColor?.() || '#a8e6cf'
+  return c + '40'
+})
 
 const animatedCoins = ref(props.coins)
 const coinBump = ref(false)
@@ -286,5 +302,20 @@ function easeOut(t) {
   background: rgba(46, 204, 113, 0.12);
   color: #2ecc71;
   border-color: rgba(46, 204, 113, 0.25);
+}
+
+.season-badge {
+  background: rgba(255, 255, 255, 0.04);
+  gap: 4px;
+}
+
+.season-text {
+  font-size: 12px;
+}
+
+.season-time {
+  font-size: 10px;
+  color: #95a5a6;
+  margin-left: 2px;
 }
 </style>

@@ -11,12 +11,29 @@
         <span class="customer-emoji">{{ customer.emoji }}</span>
         <div class="customer-detail">
           <span class="customer-name">{{ customer.name }}</span>
-          <span class="customer-dialogue">"{{ customer.wantedDish ? `我想要${customer.wantedDish.name}！` : '我想吃点东西~' }}"</span>
+          <span class="customer-dialogue">"{{ getOrderDialogue() }}"</span>
         </div>
       </div>
 
-      <!-- Wanted dish highlight -->
-      <div class="wanted-dish" v-if="customer?.wantedDish">
+      <!-- Combo order -->
+      <div v-if="customer?.isComboOrder" class="combo-order">
+        <div class="wanted-label">🍱 顾客要点套餐:</div>
+        <div class="combo-order-card" @click="$emit('confirm', customer.wantedDish)">
+          <div class="combo-order-dishes">
+            <span v-for="d in customer.comboDishes" :key="d.id" class="combo-order-dish">
+              <span class="combo-dish-emoji">{{ d.emoji }}</span>
+              <span class="combo-dish-name">{{ d.name }}</span>
+            </span>
+          </div>
+          <div class="combo-order-info">
+            <span class="combo-bonus-tag">套餐加成 +{{ Math.floor((customer.comboMultiplier - 1) * 100) }}%</span>
+          </div>
+          <div class="confirm-badge">确认</div>
+        </div>
+      </div>
+
+      <!-- Wanted dish highlight (single dish) -->
+      <div class="wanted-dish" v-else-if="customer?.wantedDish">
         <div class="wanted-label">🎯 顾客想要点:</div>
         <div class="wanted-card" @click="$emit('confirm', customer.wantedDish)">
           <span class="wanted-emoji">{{ customer.wantedDish.emoji }}</span>
@@ -56,11 +73,23 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   customer: { type: Object, default: null },
   dishes: { type: Array, default: () => [] }
 })
 defineEmits(['confirm', 'close'])
+
+function getOrderDialogue() {
+  if (!props.customer) return '我想吃点东西~'
+  if (props.customer.isComboOrder && props.customer.comboDishes) {
+    const names = props.customer.comboDishes.map(d => d.name).join('+')
+    return `我要套餐！${names}`
+  }
+  if (props.customer.wantedDish) {
+    return `我想要${props.customer.wantedDish.name}！`
+  }
+  return '我想吃点东西~'
+}
 </script>
 
 <style scoped>
@@ -332,5 +361,60 @@ defineEmits(['confirm', 'close'])
 .menu-price {
   color: #e67e22;
   font-weight: 600;
+}
+
+/* Combo order */
+.combo-order {
+  margin-bottom: 16px;
+}
+
+.combo-order-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f3e5f5, #e8daef);
+  border: 2px solid #9b59b6;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+}
+
+.combo-order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(155, 89, 182, 0.3);
+}
+
+.combo-order-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.combo-order-dish {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 4px 10px;
+  border-radius: 10px;
+}
+
+.combo-dish-emoji { font-size: 18px; }
+.combo-dish-name { font-size: 12px; color: #5d4037; font-weight: 600; }
+
+.combo-order-info {
+  display: flex;
+  align-items: center;
+}
+
+.combo-bonus-tag {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 8px;
 }
 </style>
