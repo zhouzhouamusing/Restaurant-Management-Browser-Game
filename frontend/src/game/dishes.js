@@ -427,3 +427,190 @@ export function getPositiveReviewRate(qualityScore) {
   if (qualityScore >= 45) return 0.50
   return 0.35
 }
+
+// === Achievement System ===
+
+export const ACHIEVEMENT_DEFINITIONS = [
+  { id: 'serve_10', name: '初出茅庐', emoji: '🌱', desc: '服务10位顾客', condition: (s) => s.customersServed >= 10, reward: { coins: 50 } },
+  { id: 'serve_50', name: '小有名气', emoji: '⭐', desc: '服务50位顾客', condition: (s) => s.customersServed >= 50, reward: { coins: 200 } },
+  { id: 'serve_100', name: '名声大噪', emoji: '🏆', desc: '服务100位顾客', condition: (s) => s.customersServed >= 100, reward: { coins: 500 } },
+  { id: 'earn_500', name: '小富即安', emoji: '💰', desc: '累计收入500金币', condition: (s) => s.totalEarned >= 500, reward: { coins: 100 } },
+  { id: 'earn_2000', name: '财源广进', emoji: '🤑', desc: '累计收入2000金币', condition: (s) => s.totalEarned >= 2000, reward: { coins: 300 } },
+  { id: 'earn_5000', name: '日进斗金', emoji: '💎', desc: '累计收入5000金币', condition: (s) => s.totalEarned >= 5000, reward: { coins: 800 } },
+  { id: 'dishes_5', name: '菜品丰富', emoji: '🍽️', desc: '解锁5道菜品', condition: (s) => s.dishes.length >= 5, reward: { coins: 150 } },
+  { id: 'dishes_10', name: '满汉全席', emoji: '🎊', desc: '解锁10道菜品', condition: (s) => s.dishes.length >= 10, reward: { coins: 400 } },
+  { id: 'dishes_15', name: '厨神降临', emoji: '👨‍🍳', desc: '解锁15道菜品', condition: (s) => s.dishes.length >= 15, reward: { coins: 700 } },
+  { id: 'level_5', name: '五星餐厅', emoji: '🌟', desc: '餐厅达到5级', condition: (s) => s.level >= 5, reward: { coins: 250 } },
+  { id: 'level_10', name: '商业帝国', emoji: '🏰', desc: '餐厅达到10级', condition: (s) => s.level >= 10, reward: { coins: 600 } },
+  { id: 'combo_first', name: '套餐大师', emoji: '🍱', desc: '创建第一个套餐', condition: (s) => s.combos.length >= 1, reward: { coins: 100 } },
+  { id: 'combo_3', name: '搭配高手', emoji: '🎯', desc: '创建3个套餐', condition: (s) => s.combos.length >= 3, reward: { coins: 250 } },
+  { id: 'reviews_90', name: '口碑爆棚', emoji: '👍', desc: '好评率达到90%(至少10单)', condition: (s) => s.totalReviews >= 10 && (s.positiveReviews / s.totalReviews) >= 0.9, reward: { coins: 300 } },
+  { id: 'staff_3', name: '团队壮大', emoji: '👥', desc: '雇佣3名员工', condition: (s) => s.staff.length >= 3, reward: { coins: 200 } },
+  { id: 'seasonal_master', name: '四季美食家', emoji: '🌈', desc: '解锁每个季节至少1道限定菜', condition: (s) => checkSeasonalCoverage(s), reward: { coins: 500 } },
+  { id: 'supplier_gold', name: '供货之友', emoji: '🤝', desc: '任意供应商达到金牌客户', condition: (s) => Object.values(s.supplierPurchaseHistory || {}).some(v => v >= 100), reward: { coins: 400 } },
+  { id: 'first_event', name: '活动达人', emoji: '🎪', desc: '参与首次季节活动', condition: (s) => s.eventsParticipated >= 1, reward: { coins: 150 } },
+]
+
+function checkSeasonalCoverage(state) {
+  const seasonSets = { spring: false, summer: false, autumn: false, winter: false }
+  for (const dish of state.dishes) {
+    const cat = DISH_CATALOG[dish.id]
+    if (cat && cat.seasons.length < 4) {
+      for (const s of cat.seasons) seasonSets[s] = true
+    }
+  }
+  return Object.values(seasonSets).every(v => v)
+}
+
+// === Seasonal Events ===
+
+export const SEASONAL_EVENTS = {
+  spring: {
+    name: '樱花祭',
+    emoji: '🌸',
+    description: '春季限时：樱花主题菜品收入+20%',
+    bonuses: { revenueMultiplier: 1.2 },
+    startProgress: 0.25,
+    endProgress: 0.75,
+    specialDishes: [13, 20, 15],
+    color: '#ffb7c5'
+  },
+  summer: {
+    name: '冰爽嘉年华',
+    emoji: '🎪',
+    description: '夏季限时：冷饮出售速度+30%',
+    bonuses: { cookSpeedBonus: 0.3, categoryBonus: 'drink' },
+    startProgress: 0.25,
+    endProgress: 0.75,
+    specialDishes: [9, 10, 18],
+    color: '#87ceeb'
+  },
+  autumn: {
+    name: '丰收宴',
+    emoji: '🎃',
+    description: '秋季限时：主菜类小费+25%',
+    bonuses: { tipBonus: 0.25, categoryBonus: 'main' },
+    startProgress: 0.25,
+    endProgress: 0.75,
+    specialDishes: [7, 14],
+    color: '#daa520'
+  },
+  winter: {
+    name: '暖冬美食节',
+    emoji: '🎄',
+    description: '冬季限时：火锅热饮顾客耐心+30%',
+    bonuses: { patienceBonus: 0.3 },
+    startProgress: 0.25,
+    endProgress: 0.75,
+    specialDishes: [11, 12, 16, 19],
+    color: '#b0e0e6'
+  }
+}
+
+// === Supplier Loyalty Tiers ===
+
+export const SUPPLIER_LOYALTY_TIERS = [
+  { level: 1, name: '普通客户', emoji: '⚪', minPurchases: 0, discount: 0 },
+  { level: 2, name: '铜牌客户', emoji: '🥉', minPurchases: 20, discount: 0.05 },
+  { level: 3, name: '银牌客户', emoji: '🥈', minPurchases: 50, discount: 0.10 },
+  { level: 4, name: '金牌客户', emoji: '🥇', minPurchases: 100, discount: 0.18 },
+  { level: 5, name: '钻石客户', emoji: '💎', minPurchases: 200, discount: 0.25 }
+]
+
+export function getSupplierLoyaltyTier(purchaseCount) {
+  let tier = SUPPLIER_LOYALTY_TIERS[0]
+  for (const t of SUPPLIER_LOYALTY_TIERS) {
+    if (purchaseCount >= t.minPurchases) tier = t
+  }
+  return tier
+}
+
+export function getNextLoyaltyTier(purchaseCount) {
+  for (const t of SUPPLIER_LOYALTY_TIERS) {
+    if (purchaseCount < t.minPurchases) return t
+  }
+  return null
+}
+
+export function getBuyPriceWithLoyalty(ingredientId, quantity, supplier, loyaltyDiscount) {
+  const ingredient = INGREDIENT_CATALOG[ingredientId]
+  if (!ingredient) return 0
+  return Math.ceil(ingredient.basePrice * quantity * supplier.priceMultiplier * (1 - (loyaltyDiscount || 0)))
+}
+
+// === Combo Recommendations ===
+
+export function getComboRecommendations(dishes, currentSeason, unlockedTemplates) {
+  const recommendations = []
+
+  for (const templateId of unlockedTemplates) {
+    const template = COMBO_TEMPLATES.find(t => t.id === templateId)
+    if (!template) continue
+
+    const slotCandidates = template.slots.map(slot =>
+      dishes.filter(d => {
+        const cat = DISH_CATALOG[d.id]
+        return cat && cat.category === slot && isDishAvailableInSeason(cat, currentSeason)
+      })
+    )
+
+    if (slotCandidates.some(c => c.length === 0)) continue
+
+    const combos = _generateScoredCombos(slotCandidates, template, currentSeason)
+    for (const combo of combos.slice(0, 2)) {
+      recommendations.push({
+        templateId: template.id,
+        templateName: template.name,
+        dishIds: combo.dishIds,
+        dishes: combo.dishes,
+        score: combo.score,
+        bonusPercent: Math.round((template.bonusMultiplier - 1) * 100 + combo.seasonalExtra)
+      })
+    }
+  }
+
+  return recommendations.sort((a, b) => b.score - a.score).slice(0, 5)
+}
+
+function _generateScoredCombos(slotCandidates, template, currentSeason) {
+  const results = []
+  const maxPerSlot = 4
+
+  const limited = slotCandidates.map(candidates => {
+    return candidates
+      .map(d => ({ ...d, catalog: DISH_CATALOG[d.id] }))
+      .filter(d => d.catalog)
+      .sort((a, b) => _dishScore(b.catalog, currentSeason) - _dishScore(a.catalog, currentSeason))
+      .slice(0, maxPerSlot)
+  })
+
+  function recurse(slotIdx, chosen) {
+    if (slotIdx >= limited.length) {
+      const dishIds = chosen.map(d => d.id)
+      const dishes = chosen.map(d => ({ id: d.id, name: d.catalog.name, emoji: d.catalog.emoji }))
+      const score = chosen.reduce((s, d) => s + _dishScore(d.catalog, currentSeason), 0)
+      const seasonalExtra = chosen.reduce((s, d) => {
+        const isSeasonal = d.catalog.seasons.length < 4 && d.catalog.seasons.includes(currentSeason)
+        return s + (isSeasonal ? (d.catalog.seasonalBonus || 0.2) * 100 : 0)
+      }, 0)
+      results.push({ dishIds, dishes, score, seasonalExtra })
+      return
+    }
+    for (const candidate of limited[slotIdx]) {
+      recurse(slotIdx + 1, [...chosen, candidate])
+    }
+  }
+
+  recurse(0, [])
+  return results.sort((a, b) => b.score - a.score)
+}
+
+function _dishScore(catalogDish, currentSeason) {
+  let score = catalogDish.price
+  const rarity = RARITY_CONFIG[catalogDish.rarity || 'common']
+  score *= rarity.revenueMultiplier
+  if (catalogDish.seasons.length < 4 && catalogDish.seasons.includes(currentSeason)) {
+    score *= (1 + (catalogDish.seasonalBonus || 0.2))
+  }
+  return score
+}

@@ -161,7 +161,11 @@ function getCanvasSize() {
   return { w: canvasRef.value?.width || 800, h: canvasRef.value?.height || 600 }
 }
 
-defineExpose({ confirmOrder, serveDish, checkout, triggerSalaryEffect, setEditMode, updateDecorationState, updateBonuses, updateSeasonData, updateQualityMap, updateCombos, updateRestaurantLevel, getCanvasSize })
+function getEngine() {
+  return engine
+}
+
+defineExpose({ confirmOrder, serveDish, checkout, triggerSalaryEffect, setEditMode, updateDecorationState, updateBonuses, updateSeasonData, updateQualityMap, updateCombos, updateRestaurantLevel, getCanvasSize, getEngine })
 </script>
 
 <style scoped>

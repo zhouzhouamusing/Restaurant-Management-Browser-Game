@@ -10,6 +10,9 @@
       :editMode="editMode"
       :seasonTimer="seasonTimer"
       :currentSeason="currentSeason"
+      :activeEvent="activeEvent"
+      :achievementCount="gameState.achievements.length"
+      :achievementTotal="ACHIEVEMENT_DEFINITIONS.length"
       @save="saveGame"
       @logout="logout"
       @toggle-edit="toggleEditMode"
@@ -146,6 +149,9 @@
               :unlockedComboTemplates="gameState.unlockedComboTemplates"
               :restaurantLevel="gameState.level"
               :ingredientStock="gameState.ingredientStock"
+              :supplierPurchaseHistory="gameState.supplierPurchaseHistory"
+              :activeEvent="activeEvent"
+              :comboRecommendations="comboRecommendations"
               @unlock-dish="unlockDish"
               @start-research="startResearch"
               @unlock-supplier="unlockSupplier"
@@ -174,6 +180,13 @@
             <BillPanel
               v-else-if="activeTab === 'bills'"
               :bills="billHistory"
+              :activeOrders="activeOrders"
+            />
+            <StatsPanel
+              v-else-if="activeTab === 'stats'"
+              :bills="billHistory"
+              :gameState="gameState"
+              :achievements="gameState.achievements"
             />
           </Transition>
         </div>
@@ -183,14 +196,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { gameApi } from '../api'
 import { Staff, getHireCost } from '../game/staff.js'
 import { saveToLocal, loadFromLocal } from '../game/persistence.js'
 import { getDefaultDecorationState } from '../game/decorations.js'
 import { calculateBonuses, calculateDishQuality } from '../game/bonus-calculator.js'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, RARITY_CONFIG, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost, canServeDish, consumeIngredients, getBuyPrice, INGREDIENT_CATALOG } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, RARITY_CONFIG, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost, canServeDish, consumeIngredients, getBuyPrice, INGREDIENT_CATALOG, ACHIEVEMENT_DEFINITIONS, SEASONAL_EVENTS, getSupplierLoyaltyTier, getNextLoyaltyTier, getBuyPriceWithLoyalty, getComboRecommendations } from '../game/dishes.js'
 import { SeasonTimer } from '../game/season-timer.js'
 import { ResearchManager } from '../game/research.js'
 import GameHUD from '../components/GameHUD.vue'
@@ -200,6 +213,7 @@ import ShopPanel from '../components/ShopPanel.vue'
 import OrderPanel from '../components/OrderPanel.vue'
 import StaffPanel from '../components/StaffPanel.vue'
 import BillPanel from '../components/BillPanel.vue'
+import StatsPanel from '../components/StatsPanel.vue'
 
 const router = useRouter()
 const canvasRef = ref(null)
@@ -213,13 +227,15 @@ let salaryInterval = null
 let autoSaveInterval = null
 let researchCheckInterval = null
 let seasonCheckInterval = null
+let seasonTickInterval = null
 let lastSeason = null
 
 const tabs = [
   { id: 'dishes', icon: '🍽️', label: '菜品' },
   { id: 'staff', icon: '👥', label: '员工' },
   { id: 'shop', icon: '🛒', label: '商店' },
-  { id: 'bills', icon: '🧾', label: '账单' }
+  { id: 'bills', icon: '🧾', label: '订单' },
+  { id: 'stats', icon: '📊', label: '统计' }
 ]
 
 const gameState = reactive({
@@ -243,16 +259,25 @@ const gameState = reactive({
   unlockedComboTemplates: [],
   ingredientStock: {},
   positiveReviews: 0,
-  totalReviews: 0
+  totalReviews: 0,
+  achievements: [],
+  totalEarned: 0,
+  supplierPurchaseHistory: {},
+  eventsParticipated: 0
 })
 
 const researchManager = ref(ResearchManager.fromSerialized(null))
-const seasonTimer = computed(() => new SeasonTimer(gameState.seasonEpoch))
+const seasonTimer = shallowRef(new SeasonTimer(gameState.seasonEpoch))
 const currentSeason = computed(() => seasonTimer.value.getCurrentSeason())
 
 const editMode = ref(false)
+const activeOrders = ref([])
 
 const activeBonuses = computed(() => calculateBonuses(gameState.decorations))
+const activeEvent = computed(() => seasonTimer.value.getActiveEvent())
+const comboRecommendations = computed(() =>
+  getComboRecommendations(gameState.dishes, currentSeason.value, gameState.unlockedComboTemplates)
+)
 
 watch(activeBonuses, (bonuses) => {
   canvasRef.value?.updateBonuses(bonuses.tipBonus, bonuses.patienceBonus)
@@ -375,6 +400,10 @@ onMounted(async () => {
     if (localSave.ingredientStock) gameState.ingredientStock = localSave.ingredientStock
     if (localSave.positiveReviews) gameState.positiveReviews = localSave.positiveReviews
     if (localSave.totalReviews) gameState.totalReviews = localSave.totalReviews
+    if (localSave.achievements) gameState.achievements = localSave.achievements
+    if (localSave.totalEarned) gameState.totalEarned = localSave.totalEarned
+    if (localSave.supplierPurchaseHistory) gameState.supplierPurchaseHistory = localSave.supplierPurchaseHistory
+    if (localSave.eventsParticipated) gameState.eventsParticipated = localSave.eventsParticipated
   } else if (backendSave) {
     gameState.coins = backendSave.coins
     gameState.level = backendSave.level
@@ -441,6 +470,13 @@ onMounted(async () => {
     }
   }, 10000)
 
+  // Tick season timer every second for live countdown
+  seasonTickInterval = setInterval(() => {
+    seasonTimer.value = new SeasonTimer(gameState.seasonEpoch)
+    updateActiveOrders()
+    checkEventParticipation()
+  }, 1000)
+
   // Push initial data to engine
   setTimeout(() => {
     canvasRef.value?.updateSeasonData(currentSeason.value)
@@ -455,6 +491,7 @@ onUnmounted(() => {
   if (autoSaveInterval) clearInterval(autoSaveInterval)
   if (researchCheckInterval) clearInterval(researchCheckInterval)
   if (seasonCheckInterval) clearInterval(seasonCheckInterval)
+  if (seasonTickInterval) clearInterval(seasonTickInterval)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
@@ -531,10 +568,13 @@ function handleStaffAction(result) {
 
 function handleBillUpdate(bills) {
   billHistory.value = bills
+  updateActiveOrders()
 }
 
 function earnCoins(amount) {
   gameState.coins += amount
+  gameState.totalEarned += amount
+  checkAchievements()
 }
 
 function serveCustomer() {
@@ -543,6 +583,7 @@ function serveCustomer() {
     gameState.level++
     showToast('🎉', `恭喜！餐厅升级到 Lv.${gameState.level}！`, 'levelup')
   }
+  checkAchievements()
 }
 
 function unlockDish(dish) {
@@ -550,6 +591,7 @@ function unlockDish(dish) {
     gameState.coins -= dish.unlockCost
     gameState.dishes.push({ ...dish, unlockCost: undefined })
     showToast('🆕', `解锁新菜品: ${dish.emoji} ${dish.name}！`, 'success')
+    checkAchievements()
   } else {
     showToast('❌', '金币不足！', 'error')
   }
@@ -633,6 +675,7 @@ function createCombo(templateId, dishIds, name) {
   const template = COMBO_TEMPLATES.find(t => t.id === templateId)
   gameState.combos.push({ templateId, dishIds, name: name || template.name })
   showToast('🎊', `创建套餐「${name || template.name}」成功！`, 'success')
+  checkAchievements()
 }
 
 function removeCombo(index) {
@@ -642,7 +685,8 @@ function removeCombo(index) {
 
 function buyIngredient(ingredientId, quantity, supplierId) {
   const supplier = getSupplierById(supplierId || 'market_basic')
-  const cost = getBuyPrice(ingredientId, quantity, supplier)
+  const loyaltyTier = getSupplierLoyaltyTier(gameState.supplierPurchaseHistory[supplier.id] || 0)
+  const cost = getBuyPriceWithLoyalty(ingredientId, quantity, supplier, loyaltyTier.discount)
   if (gameState.coins < cost) {
     showToast('❌', '金币不足！', 'error')
     return
@@ -650,7 +694,19 @@ function buyIngredient(ingredientId, quantity, supplierId) {
   gameState.coins -= cost
   const ingredient = INGREDIENT_CATALOG[ingredientId]
   gameState.ingredientStock[ingredientId] = (gameState.ingredientStock[ingredientId] || 0) + quantity
+
+  if (!gameState.supplierPurchaseHistory[supplier.id]) {
+    gameState.supplierPurchaseHistory[supplier.id] = 0
+  }
+  const oldTier = getSupplierLoyaltyTier(gameState.supplierPurchaseHistory[supplier.id])
+  gameState.supplierPurchaseHistory[supplier.id] += quantity
+  const newTier = getSupplierLoyaltyTier(gameState.supplierPurchaseHistory[supplier.id])
+  if (newTier.level > oldTier.level) {
+    showToast(newTier.emoji, `供应商关系升级！${newTier.name} (折扣${Math.round(newTier.discount * 100)}%)`, 'success')
+  }
+
   showToast('🛒', `购入 ${ingredient.emoji}${ingredient.name} ×${quantity}`, 'success')
+  checkAchievements()
 }
 
 function consumeDishIngredients(dish) {
@@ -751,6 +807,7 @@ function hireStaff(type) {
     gameState.staff.push(staff)
     const typeName = type === 'waiter' ? '服务员' : '收银员'
     showToast('🎊', `成功雇佣${typeName} ${staff.name}！`, 'success')
+    checkAchievements()
   } else {
     showToast('❌', '金币不足！', 'error')
   }
@@ -800,6 +857,43 @@ async function saveGame() {
   } catch (e) {
     saveToLocal(user.id, gameState, billHistory.value)
     showToast('💾', '本地存档成功（服务器不可用）', 'success')
+  }
+}
+
+function checkAchievements() {
+  for (const def of ACHIEVEMENT_DEFINITIONS) {
+    if (gameState.achievements.includes(def.id)) continue
+    if (def.condition(gameState)) {
+      gameState.achievements.push(def.id)
+      gameState.coins += def.reward.coins
+      showToast(def.emoji, `成就解锁「${def.name}」! +${def.reward.coins}金币`, 'achievement')
+    }
+  }
+}
+
+function updateActiveOrders() {
+  const engine = canvasRef.value?.getEngine?.()
+  if (!engine) return
+  const customers = engine.customers || []
+  activeOrders.value = customers
+    .filter(c => c.state !== 'walking_in' && c.state !== 'leaving' && c.orderedDish)
+    .map(c => ({
+      id: c.id,
+      customerName: c.name,
+      customerEmoji: c.emoji,
+      dish: c.orderedDish,
+      isCombo: c.isComboOrder,
+      comboName: c.orderedCombo?.name,
+      status: c.state === 'cooking' ? 'cooking' : c.state === 'ready_to_serve' ? 'ready' : c.state === 'eating' ? 'eating' : c.state === 'waiting_to_pay' ? 'served' : 'pending',
+      patience: c.patience
+    }))
+}
+
+function checkEventParticipation() {
+  const event = activeEvent.value
+  if (event && gameState.eventsParticipated === 0) {
+    gameState.eventsParticipated = 1
+    checkAchievements()
   }
 }
 
@@ -1186,6 +1280,18 @@ function logout() {
 .toast-item.levelup {
   background: linear-gradient(135deg, rgba(155, 89, 182, 0.9), rgba(142, 68, 173, 0.9));
   animation: levelUpPulse 0.5s ease;
+}
+
+.toast-item.achievement {
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.95), rgba(243, 156, 18, 0.9));
+  animation: achievePulse 0.6s ease;
+  box-shadow: 0 4px 20px rgba(241, 196, 15, 0.4);
+}
+
+@keyframes achievePulse {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  60% { transform: scale(1.03); }
 }
 
 @keyframes levelUpPulse {

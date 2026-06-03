@@ -1,4 +1,4 @@
-import { SEASON_CONFIG, getCurrentSeason, getSeasonProgress, getSeasonTimeRemaining } from './dishes.js'
+import { SEASON_CONFIG, SEASONAL_EVENTS, getCurrentSeason, getSeasonProgress, getSeasonTimeRemaining } from './dishes.js'
 
 export class SeasonTimer {
   constructor(epochStart) {
@@ -37,6 +37,25 @@ export class SeasonTimer {
 
   getSeasonColor() {
     return SEASON_CONFIG.colors[this.getCurrentSeason()]
+  }
+
+  isEventActive() {
+    const progress = this.getProgress()
+    const season = this.getCurrentSeason()
+    const event = SEASONAL_EVENTS[season]
+    return event && progress >= event.startProgress && progress <= event.endProgress
+  }
+
+  getActiveEvent() {
+    if (!this.isEventActive()) return null
+    return SEASONAL_EVENTS[this.getCurrentSeason()]
+  }
+
+  getEventProgress() {
+    const event = this.getActiveEvent()
+    if (!event) return 0
+    const progress = this.getProgress()
+    return (progress - event.startProgress) / (event.endProgress - event.startProgress)
   }
 
   serialize() {

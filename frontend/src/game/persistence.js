@@ -17,7 +17,7 @@ export function saveToLocal(userId, gameState, billHistory) {
       name: s.name,
       totalServed: s.totalServed
     })),
-    billHistory: (billHistory || []).slice(0, 50),
+    billHistory: (billHistory || []).slice(0, 100),
     decorations: gameState.decorations || getDefaultDecorationState(),
     tablePositions: gameState.tablePositions || null,
     researchData: gameState.researchData || null,
@@ -29,6 +29,10 @@ export function saveToLocal(userId, gameState, billHistory) {
     ingredientStock: gameState.ingredientStock || {},
     positiveReviews: gameState.positiveReviews || 0,
     totalReviews: gameState.totalReviews || 0,
+    achievements: gameState.achievements || [],
+    totalEarned: gameState.totalEarned || 0,
+    supplierPurchaseHistory: gameState.supplierPurchaseHistory || {},
+    eventsParticipated: gameState.eventsParticipated || 0,
     savedAt: Date.now()
   }
   try {
@@ -43,12 +47,8 @@ export function loadFromLocal(userId) {
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + userId)
     if (!raw) return null
     const data = JSON.parse(raw)
-    if (!data.decorations) {
-      data.decorations = getDefaultDecorationState()
-    }
-    if (!data.tablePositions) {
-      data.tablePositions = null
-    }
+    if (!data.decorations) data.decorations = getDefaultDecorationState()
+    if (!data.tablePositions) data.tablePositions = null
     if (!data.researchData) data.researchData = null
     if (!data.unlockedSuppliers) data.unlockedSuppliers = ['market_basic']
     if (!data.supplierAssignments) data.supplierAssignments = {}
@@ -58,6 +58,10 @@ export function loadFromLocal(userId) {
     if (!data.ingredientStock) data.ingredientStock = {}
     if (!data.positiveReviews) data.positiveReviews = 0
     if (!data.totalReviews) data.totalReviews = 0
+    if (!data.achievements) data.achievements = []
+    if (!data.totalEarned) data.totalEarned = 0
+    if (!data.supplierPurchaseHistory) data.supplierPurchaseHistory = {}
+    if (!data.eventsParticipated) data.eventsParticipated = 0
     return data
   } catch (e) {
     return null

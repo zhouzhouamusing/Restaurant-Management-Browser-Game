@@ -15,6 +15,10 @@
         <span class="badge-text season-text" :style="{ color: seasonTextColor }">{{ seasonName }}</span>
         <span class="season-time">{{ seasonTimeLeft }}</span>
       </div>
+      <div v-if="activeEvent" class="hud-badge event-badge" :style="{ borderColor: activeEvent.color + '60' }">
+        <span class="badge-icon event-icon">{{ activeEvent.emoji }}</span>
+        <span class="badge-text event-text" :style="{ color: activeEvent.color }">{{ activeEvent.name }}</span>
+      </div>
     </div>
 
     <div class="hud-section hud-center">
@@ -31,6 +35,10 @@
       <div class="hud-badge served-badge">
         <span class="badge-icon">👥</span>
         <span class="badge-text">已服务 {{ customersServed }} 人</span>
+      </div>
+      <div class="hud-badge achievement-badge" v-if="achievementCount > 0">
+        <span class="badge-icon">🏆</span>
+        <span class="badge-text">{{ achievementCount }}/{{ achievementTotal }}</span>
       </div>
     </div>
 
@@ -62,7 +70,10 @@ const props = defineProps({
   bonuses: { type: Object, default: () => ({ tipBonus: 0, patienceBonus: 0 }) },
   editMode: { type: Boolean, default: false },
   seasonTimer: { type: Object, default: null },
-  currentSeason: { type: String, default: 'spring' }
+  currentSeason: { type: String, default: 'spring' },
+  activeEvent: { type: Object, default: null },
+  achievementCount: { type: Number, default: 0 },
+  achievementTotal: { type: Number, default: 0 }
 })
 
 defineEmits(['save', 'logout', 'toggle-edit'])
@@ -175,6 +186,41 @@ function easeOut(t) {
 @keyframes glowSlide {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+/* Event badge */
+.event-badge {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  animation: eventPulse 2s ease-in-out infinite;
+}
+
+.event-icon {
+  animation: eventBounce 1.5s ease infinite;
+}
+
+@keyframes eventPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 200, 100, 0); }
+  50% { box-shadow: 0 0 12px 2px rgba(255, 200, 100, 0.3); }
+}
+
+@keyframes eventBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.event-text {
+  font-size: 11px;
+}
+
+/* Achievement badge */
+.achievement-badge {
+  background: linear-gradient(135deg, rgba(241, 196, 15, 0.12), rgba(243, 156, 18, 0.08));
+  border-color: rgba(241, 196, 15, 0.25);
+}
+
+.achievement-badge .badge-text {
+  color: #f1c40f;
+  font-size: 11px;
 }
 
 /* Gold display */

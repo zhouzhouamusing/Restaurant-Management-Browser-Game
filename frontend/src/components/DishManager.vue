@@ -86,15 +86,25 @@
       <div v-if="researchProgress" class="research-active">
         <div class="research-header">🔬 研发进行中</div>
         <div class="research-item-active">
-          <span class="research-emoji">{{ getResearchDish(researchProgress.dishId)?.emoji }}</span>
+          <span class="research-emoji flask-anim">{{ getResearchDish(researchProgress.dishId)?.emoji }}</span>
           <div class="research-info">
             <span class="research-name">{{ getResearchDish(researchProgress.dishId)?.name }}</span>
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: (researchProgress.progress * 100) + '%' }">
+            <div class="progress-bar animated">
+              <div class="progress-fill" :style="{ width: (researchProgress.progress * 100) + '%' }"
+                   :class="{ 'near-complete': researchProgress.progress > 0.8 }">
+                <div class="progress-stripes"></div>
                 <span class="progress-text">{{ Math.floor(researchProgress.progress * 100) }}%</span>
               </div>
+              <div class="progress-milestones">
+                <span class="milestone" v-for="m in [25, 50, 75]" :key="m"
+                      :style="{ left: m + '%' }"
+                      :class="{ reached: researchProgress.progress * 100 >= m }"></span>
+              </div>
             </div>
-            <span class="research-time">剩余 {{ formatTime(researchProgress.timeRemaining) }}</span>
+            <div class="research-phase">
+              <span class="phase-label">{{ getResearchPhase(researchProgress.progress) }}</span>
+              <span class="research-time">剩余 {{ formatTime(researchProgress.timeRemaining) }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -140,6 +150,15 @@
 
     <!-- Ingredients Tab -->
     <div v-if="activeSubTab === 'ingredients'" class="tab-content">
+      <!-- Event Banner -->
+      <div v-if="activeEvent" class="event-banner" :style="{ borderColor: activeEvent.color + '40' }">
+        <span class="event-banner-icon">{{ activeEvent.emoji }}</span>
+        <div class="event-banner-info">
+          <span class="event-banner-name" :style="{ color: activeEvent.color }">{{ activeEvent.name }}</span>
+          <span class="event-banner-desc">{{ activeEvent.description }}</span>
+        </div>
+      </div>
+
       <!-- Suppliers -->
       <div class="section-label">🚚 供应商</div>
       <div class="supplier-list">
@@ -151,11 +170,23 @@
         >
           <span class="supplier-emoji">{{ supplier.emoji }}</span>
           <div class="supplier-info">
-            <span class="supplier-name">{{ supplier.name }}</span>
+            <div class="supplier-name-row">
+              <span class="supplier-name">{{ supplier.name }}</span>
+              <span v-if="isSupplierUnlocked(supplier.id)" class="loyalty-badge" :style="{ color: getSupplierTier(supplier.id).level > 1 ? '#f1c40f' : '#95a5a6' }">
+                {{ getSupplierTier(supplier.id).emoji }} {{ getSupplierTier(supplier.id).name }}
+              </span>
+            </div>
             <span class="supplier-desc">{{ supplier.description }}</span>
             <div class="supplier-stats">
               <span class="stat">品质+{{ supplier.qualityBonus }}</span>
               <span class="stat">价格×{{ supplier.priceMultiplier }}</span>
+              <span v-if="isSupplierUnlocked(supplier.id) && getSupplierTier(supplier.id).discount > 0" class="stat discount-stat">折扣-{{ Math.round(getSupplierTier(supplier.id).discount * 100) }}%</span>
+            </div>
+            <div v-if="isSupplierUnlocked(supplier.id) && getSupplierNextTier(supplier.id)" class="loyalty-progress">
+              <div class="loyalty-progress-bar">
+                <div class="loyalty-progress-fill" :style="{ width: getSupplierProgress(supplier.id) + '%' }"></div>
+              </div>
+              <span class="loyalty-next">{{ getSupplierNextTier(supplier.id).emoji }} {{ supplierPurchaseHistory[supplier.id] || 0 }}/{{ getSupplierNextTier(supplier.id).minPurchases }}</span>
             </div>
           </div>
           <button
@@ -230,6 +261,21 @@
 
     <!-- Combos Tab -->
     <div v-if="activeSubTab === 'combos'" class="tab-content">
+      <!-- Smart Recommendations -->
+      <div v-if="comboRecommendations.length > 0" class="section-label">💡 智能推荐</div>
+      <div class="recommendation-list">
+        <div v-for="rec in comboRecommendations" :key="rec.dishIds.join('-')" class="recommendation-card">
+          <div class="rec-header">
+            <span class="rec-dishes">{{ rec.dishes.map(d => d.emoji).join(' + ') }}</span>
+            <span class="rec-bonus">+{{ rec.bonusPercent }}%</span>
+          </div>
+          <div class="rec-names">{{ rec.dishes.map(d => d.name).join(' + ') }}</div>
+          <button class="rec-create-btn" @click="$emit('create-combo', rec.templateId, rec.dishIds, rec.dishes.map(d => d.name).join('+'))">
+            ✨ 一键创建
+          </button>
+        </div>
+      </div>
+
       <!-- Existing combos -->
       <div v-if="combos.length > 0" class="section-label">🍱 已创建套餐</div>
       <div class="combo-list">
@@ -324,7 +370,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, INGREDIENT_CATALOG, RARITY_CONFIG, isDishAvailableInSeason, isDishSeasonal, getCategoryName, getSupplierById, getBuyPrice, getPositiveReviewRate } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, INGREDIENT_CATALOG, RARITY_CONFIG, isDishAvailableInSeason, isDishSeasonal, getCategoryName, getSupplierById, getBuyPriceWithLoyalty, getPositiveReviewRate, getSupplierLoyaltyTier, getNextLoyaltyTier, SUPPLIER_LOYALTY_TIERS } from '../game/dishes.js'
 
 const props = defineProps({
   dishes: { type: Array, default: () => [] },
@@ -338,7 +384,10 @@ const props = defineProps({
   combos: { type: Array, default: () => [] },
   unlockedComboTemplates: { type: Array, default: () => [] },
   restaurantLevel: { type: Number, default: 1 },
-  ingredientStock: { type: Object, default: () => ({}) }
+  ingredientStock: { type: Object, default: () => ({}) },
+  supplierPurchaseHistory: { type: Object, default: () => ({}) },
+  activeEvent: { type: Object, default: null },
+  comboRecommendations: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits([
@@ -436,7 +485,22 @@ const activeSupplierForBuy = computed(() => {
 function getStock(ingredientId) { return props.ingredientStock[ingredientId] || 0 }
 function getBuyCost(ingredientId, qty) {
   const supplier = getSupplierById(activeSupplierForBuy.value)
-  return getBuyPrice(ingredientId, qty, supplier)
+  const tier = getSupplierLoyaltyTier(props.supplierPurchaseHistory[supplier.id] || 0)
+  return getBuyPriceWithLoyalty(ingredientId, qty, supplier, tier.discount)
+}
+function getSupplierTier(supplierId) {
+  return getSupplierLoyaltyTier(props.supplierPurchaseHistory[supplierId] || 0)
+}
+function getSupplierNextTier(supplierId) {
+  return getNextLoyaltyTier(props.supplierPurchaseHistory[supplierId] || 0)
+}
+function getSupplierProgress(supplierId) {
+  const purchases = props.supplierPurchaseHistory[supplierId] || 0
+  const currentTier = getSupplierLoyaltyTier(purchases)
+  const nextTier = getNextLoyaltyTier(purchases)
+  if (!nextTier) return 100
+  const prev = currentTier.minPurchases
+  return Math.min(100, ((purchases - prev) / (nextTier.minPurchases - prev)) * 100)
 }
 function getDishIngredients(dishId) {
   const dish = DISH_CATALOG[dishId]
@@ -525,6 +589,14 @@ function formatTime(ms) {
   const sec = Math.ceil(ms / 1000)
   if (sec >= 60) return `${Math.floor(sec / 60)}分${sec % 60}秒`
   return `${sec}秒`
+}
+
+function getResearchPhase(progress) {
+  if (progress < 0.25) return '🧪 配方设计中...'
+  if (progress < 0.5) return '🔥 烹饪测试中...'
+  if (progress < 0.75) return '👅 口味调整中...'
+  if (progress < 0.95) return '✨ 最终验证中...'
+  return '🎉 即将完成!'
 }
 </script>
 
@@ -820,6 +892,17 @@ function formatTime(ms) {
 
 .research-emoji { font-size: 28px; }
 
+.flask-anim {
+  animation: flaskBubble 2s ease infinite;
+}
+
+@keyframes flaskBubble {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.05) rotate(-3deg); }
+  50% { transform: scale(1.1) rotate(3deg); }
+  75% { transform: scale(1.05) rotate(-2deg); }
+}
+
 .research-info {
   flex: 1;
   display: flex;
@@ -841,6 +924,10 @@ function formatTime(ms) {
   position: relative;
 }
 
+.progress-bar.animated {
+  overflow: visible;
+}
+
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #3498db, #2ecc71);
@@ -850,6 +937,66 @@ function formatTime(ms) {
   align-items: center;
   justify-content: center;
   min-width: 30px;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill.near-complete {
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+  animation: pulseGlow 1s ease infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(46, 204, 113, 0.8); }
+}
+
+.progress-stripes {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg, transparent, transparent 4px, rgba(255,255,255,0.15) 4px, rgba(255,255,255,0.15) 8px
+  );
+  animation: stripeMove 0.8s linear infinite;
+}
+
+@keyframes stripeMove {
+  from { background-position-x: 0; }
+  to { background-position-x: 16px; }
+}
+
+.progress-milestones {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.milestone {
+  position: absolute;
+  top: -2px;
+  width: 2px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 1px;
+  transform: translateX(-1px);
+  transition: background 0.3s;
+}
+
+.milestone.reached {
+  background: rgba(46, 204, 113, 0.6);
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+
+.research-phase {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.phase-label {
+  font-size: 10px;
+  color: #3498db;
+  font-weight: 600;
 }
 
 .progress-text {
@@ -1315,5 +1462,132 @@ function formatTime(ms) {
 @keyframes dishIn {
   from { opacity: 0; transform: translateX(-10px); }
   to { opacity: 1; transform: translateX(0); }
+}
+
+/* Event banner */
+.event-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid;
+  margin-bottom: 12px;
+  animation: eventGlow 2s ease infinite;
+}
+
+@keyframes eventGlow {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 200, 100, 0); }
+  50% { box-shadow: 0 0 12px rgba(255, 200, 100, 0.15); }
+}
+
+.event-banner-icon { font-size: 24px; animation: eventBounce 1.5s ease infinite; }
+@keyframes eventBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+.event-banner-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.event-banner-name { font-size: 12px; font-weight: 700; }
+.event-banner-desc { font-size: 10px; color: #95a5a6; }
+
+/* Supplier loyalty */
+.supplier-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loyalty-badge {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.discount-stat {
+  color: #2ecc71 !important;
+  font-weight: 600;
+}
+
+.loyalty-progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.loyalty-progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loyalty-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f1c40f, #e67e22);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.loyalty-next {
+  font-size: 9px;
+  color: #95a5a6;
+  white-space: nowrap;
+}
+
+/* Combo Recommendations */
+.recommendation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.recommendation-card {
+  background: linear-gradient(135deg, rgba(46, 204, 113, 0.08), rgba(39, 174, 96, 0.04));
+  border: 1px solid rgba(46, 204, 113, 0.2);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.rec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.rec-dishes { font-size: 18px; }
+
+.rec-bonus {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2ecc71;
+  background: rgba(46, 204, 113, 0.15);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.rec-names {
+  font-size: 10px;
+  color: #95a5a6;
+  margin-bottom: 6px;
+}
+
+.rec-create-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rec-create-btn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 3px 10px rgba(46, 204, 113, 0.3);
 }
 </style>
