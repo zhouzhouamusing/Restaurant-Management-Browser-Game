@@ -37,6 +37,18 @@
                 <div class="patience-mini-fill" :style="{ width: order.patience + '%' }" :class="patienceClass(order.patience)"></div>
               </div>
             </div>
+            <div class="order-lifecycle">
+              <div class="lifecycle-steps">
+                <span class="lc-step" :class="{ done: true }">📝</span>
+                <span class="lc-line" :class="{ done: !!order.cookStartTime }"></span>
+                <span class="lc-step" :class="{ done: !!order.cookStartTime }">🔥</span>
+                <span class="lc-line" :class="{ done: !!order.readyTime }"></span>
+                <span class="lc-step" :class="{ done: !!order.serveTime }">🍽️</span>
+                <span class="lc-line" :class="{ done: !!order.eatDoneTime }"></span>
+                <span class="lc-step" :class="{ done: !!order.eatDoneTime }">💰</span>
+              </div>
+              <span class="lc-elapsed">{{ formatElapsed(order.orderTime) }}</span>
+            </div>
           </div>
         </TransitionGroup>
       </div>
@@ -132,6 +144,13 @@ function patienceClass(patience) {
   if (patience > 60) return 'patience-high'
   if (patience > 30) return 'patience-mid'
   return 'patience-low'
+}
+
+function formatElapsed(startTime) {
+  if (!startTime) return ''
+  const sec = Math.floor((Date.now() - startTime) / 1000)
+  if (sec < 60) return `${sec}秒`
+  return `${Math.floor(sec / 60)}分${sec % 60}秒`
 }
 
 const filteredBills = computed(() => {
@@ -246,6 +265,52 @@ const totalTips = computed(() => filteredBills.value.reduce((sum, b) => sum + (b
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.3s;
+  flex-wrap: wrap;
+}
+
+.order-lifecycle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.lifecycle-steps {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.lc-step {
+  font-size: 10px;
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+
+.lc-step.done {
+  opacity: 1;
+}
+
+.lc-line {
+  width: 16px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 1px;
+  transition: background 0.3s;
+}
+
+.lc-line.done {
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.lc-elapsed {
+  font-size: 9px;
+  color: #95a5a6;
+  white-space: nowrap;
 }
 
 .order-card.status-cooking {

@@ -36,15 +36,24 @@
 
       <!-- Revenue Chart -->
       <div class="section-label">📊 近期收入趋势</div>
+      <div class="trend-indicator" v-if="revenueTrend !== 0">
+        <span class="trend-arrow" :class="revenueTrend > 0 ? 'up' : 'down'">{{ revenueTrend > 0 ? '📈' : '📉' }}</span>
+        <span class="trend-text" :class="revenueTrend > 0 ? 'up' : 'down'">{{ revenueTrend > 0 ? '+' : '' }}{{ revenueTrend }}% 趋势</span>
+      </div>
       <div class="bar-chart">
         <div v-for="(bar, i) in revenueChart" :key="i" class="chart-col">
           <div class="chart-bar-wrapper">
-            <div class="chart-bar" :style="{ height: bar.pct + '%' }" :class="bar.highlight ? 'bar-highlight' : ''">
+            <div class="chart-bar" :style="{ height: bar.pct + '%' }" :class="{ 'bar-highlight': bar.highlight, 'bar-peak': bar.isPeak }">
               <span class="bar-value" v-if="bar.value > 0">{{ bar.value }}</span>
+              <span class="peak-marker" v-if="bar.isPeak">🔺</span>
             </div>
           </div>
           <span class="chart-label">{{ bar.label }}</span>
         </div>
+      </div>
+      <div class="peak-info" v-if="peakRevenue > 0">
+        <span class="peak-label">⚡ 峰值</span>
+        <span class="peak-value">{{ peakRevenue }} 金币 ({{ peakTime }})</span>
       </div>
 
       <!-- Popular Dishes -->
@@ -94,6 +103,7 @@
         <svg class="traffic-svg" viewBox="0 0 240 60" preserveAspectRatio="none">
           <path :d="trafficPath" fill="none" stroke="url(#trafficGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path :d="trafficAreaPath" fill="url(#trafficArea)" opacity="0.3"/>
+          <circle v-if="trafficPeakPoint" :cx="trafficPeakPoint.x" :cy="trafficPeakPoint.y" r="4" fill="#e74c3c" stroke="#fff" stroke-width="1"/>
           <defs>
             <linearGradient id="trafficGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stop-color="#3498db"/>
@@ -105,6 +115,27 @@
             </linearGradient>
           </defs>
         </svg>
+      </div>
+      <div class="traffic-stats">
+        <div class="traffic-stat">
+          <span class="ts-label">峰值客流</span>
+          <span class="ts-value">{{ trafficPeak }} 人/5分钟</span>
+        </div>
+        <div class="traffic-stat">
+          <span class="ts-label">平均客流</span>
+          <span class="ts-value">{{ trafficAvg }} 人/5分钟</span>
+        </div>
+      </div>
+
+      <!-- Customer Flow Histogram -->
+      <div class="section-label">🕐 客流分时统计</div>
+      <div class="flow-histogram">
+        <div v-for="(slot, i) in flowHistogram" :key="i" class="flow-col">
+          <div class="flow-bar-wrapper">
+            <div class="flow-bar" :style="{ height: slot.pct + '%' }" :class="{ 'flow-peak': slot.isPeak }"></div>
+          </div>
+          <span class="flow-label">{{ slot.label }}</span>
+        </div>
       </div>
     </div>
 
@@ -191,7 +222,29 @@ const revenueChart = computed(() => {
     buckets.push({ value: sum, label: i === 0 ? '现在' : `-${i * 5}m` })
   }
   const max = Math.max(...buckets.map(b => b.value), 1)
-  return buckets.map((b, i) => ({ ...b, pct: (b.value / max) * 100, highlight: i === buckets.length - 1 }))
+  const peakIdx = buckets.reduce((pi, b, i) => b.value > buckets[pi].value ? i : pi, 0)
+  return buckets.map((b, i) => ({ ...b, pct: (b.value / max) * 100, highlight: i === buckets.length - 1, isPeak: i === peakIdx && b.value > 0 }))
+})
+
+const revenueTrend = computed(() => {
+  const chart = revenueChart.value
+  if (chart.length < 4) return 0
+  const recent = chart.slice(-3).reduce((s, b) => s + b.value, 0)
+  const earlier = chart.slice(0, 3).reduce((s, b) => s + b.value, 0)
+  if (earlier === 0) return recent > 0 ? 100 : 0
+  return Math.round(((recent - earlier) / earlier) * 100)
+})
+
+const peakRevenue = computed(() => {
+  const chart = revenueChart.value
+  const peak = chart.reduce((m, b) => b.value > m ? b.value : m, 0)
+  return peak
+})
+
+const peakTime = computed(() => {
+  const chart = revenueChart.value
+  const peak = chart.reduce((pi, b, i) => b.value > chart[pi].value ? i : pi, 0)
+  return chart[peak]?.label || ''
 })
 
 const popularDishes = computed(() => {
@@ -208,6 +261,17 @@ const popularDishes = computed(() => {
 })
 
 const trafficPath = computed(() => {
+  const points = trafficPoints.value
+  const max = Math.max(...points, 1)
+  const coords = points.map((p, i) => {
+    const x = (i / 11) * 240
+    const y = 55 - (p / max) * 50
+    return `${x},${y}`
+  })
+  return 'M' + coords.join(' L')
+})
+
+const trafficPoints = computed(() => {
   const points = []
   const now = Date.now()
   for (let i = 11; i >= 0; i--) {
@@ -216,13 +280,37 @@ const trafficPath = computed(() => {
     const count = props.bills.filter(b => (b.id || 0) >= start && (b.id || 0) < end).length
     points.push(count)
   }
+  return points
+})
+
+const trafficPeakPoint = computed(() => {
+  const points = trafficPoints.value
   const max = Math.max(...points, 1)
-  const coords = points.map((p, i) => {
-    const x = (i / 11) * 240
-    const y = 55 - (p / max) * 50
-    return `${x},${y}`
-  })
-  return 'M' + coords.join(' L')
+  if (max === 0) return null
+  const peakIdx = points.reduce((pi, p, i) => p > points[pi] ? i : pi, 0)
+  if (points[peakIdx] === 0) return null
+  return { x: (peakIdx / 11) * 240, y: 55 - (points[peakIdx] / max) * 50 }
+})
+
+const trafficPeak = computed(() => Math.max(...trafficPoints.value, 0))
+const trafficAvg = computed(() => {
+  const pts = trafficPoints.value
+  const sum = pts.reduce((s, p) => s + p, 0)
+  return pts.length ? (sum / pts.length).toFixed(1) : '0'
+})
+
+const flowHistogram = computed(() => {
+  const now = Date.now()
+  const slots = []
+  for (let i = 5; i >= 0; i--) {
+    const start = now - (i + 1) * 600000
+    const end = now - i * 600000
+    const count = props.bills.filter(b => (b.id || 0) >= start && (b.id || 0) < end).length
+    slots.push({ count, label: i === 0 ? '现在' : `-${(i) * 10}m` })
+  }
+  const max = Math.max(...slots.map(s => s.count), 1)
+  const peakIdx = slots.reduce((pi, s, i) => s.count > slots[pi].count ? i : pi, 0)
+  return slots.map((s, i) => ({ ...s, pct: (s.count / max) * 100, isPeak: i === peakIdx && s.count > 0 }))
 })
 
 const trafficAreaPath = computed(() => {
@@ -549,4 +637,124 @@ const trafficAreaPath = computed(() => {
 
 .ach-reward-text { font-size: 10px; color: #f1c40f; font-weight: 600; }
 .ach-done { font-size: 16px; }
+
+/* Trend indicator */
+.trend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.trend-arrow { font-size: 14px; }
+.trend-text { font-size: 11px; font-weight: 700; }
+.trend-text.up { color: #2ecc71; }
+.trend-text.down { color: #e74c3c; }
+
+.chart-bar.bar-peak {
+  background: linear-gradient(180deg, #e74c3c, #c0392b);
+  box-shadow: 0 0 10px rgba(231, 76, 60, 0.4);
+  position: relative;
+}
+
+.peak-marker {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+}
+
+.peak-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid rgba(231, 76, 60, 0.15);
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.peak-label {
+  font-size: 10px;
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.peak-value {
+  font-size: 11px;
+  color: #ecf0f1;
+  font-weight: 600;
+}
+
+/* Traffic stats */
+.traffic-stats {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+
+.traffic-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ts-label { font-size: 9px; color: #7f8c8d; }
+.ts-value { font-size: 11px; color: #ecf0f1; font-weight: 700; }
+
+/* Flow histogram */
+.flow-histogram {
+  display: flex;
+  gap: 4px;
+  height: 60px;
+  align-items: flex-end;
+  padding: 0 4px;
+  margin-bottom: 12px;
+}
+
+.flow-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.flow-bar-wrapper {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.flow-bar {
+  width: 70%;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, #9b59b6, #8e44ad);
+  transition: height 0.5s;
+  min-height: 2px;
+}
+
+.flow-bar.flow-peak {
+  background: linear-gradient(180deg, #e74c3c, #c0392b);
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.3);
+}
+
+.flow-label {
+  font-size: 8px;
+  color: #7f8c8d;
+  margin-top: 3px;
+}
 </style>

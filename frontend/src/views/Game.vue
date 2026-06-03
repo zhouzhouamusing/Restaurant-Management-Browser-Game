@@ -188,6 +188,11 @@
               :gameState="gameState"
               :achievements="gameState.achievements"
             />
+            <ReviewPanel
+              v-else-if="activeTab === 'reviews'"
+              :bills="billHistory"
+              :gameState="gameState"
+            />
           </Transition>
         </div>
       </div>
@@ -214,6 +219,7 @@ import OrderPanel from '../components/OrderPanel.vue'
 import StaffPanel from '../components/StaffPanel.vue'
 import BillPanel from '../components/BillPanel.vue'
 import StatsPanel from '../components/StatsPanel.vue'
+import ReviewPanel from '../components/ReviewPanel.vue'
 
 const router = useRouter()
 const canvasRef = ref(null)
@@ -235,6 +241,7 @@ const tabs = [
   { id: 'staff', icon: '👥', label: '员工' },
   { id: 'shop', icon: '🛒', label: '商店' },
   { id: 'bills', icon: '🧾', label: '订单' },
+  { id: 'reviews', icon: '⭐', label: '评价' },
   { id: 'stats', icon: '📊', label: '统计' }
 ]
 
@@ -272,6 +279,7 @@ const currentSeason = computed(() => seasonTimer.value.getCurrentSeason())
 
 const editMode = ref(false)
 const activeOrders = ref([])
+const orderLifecycleMap = ref({})
 
 const activeBonuses = computed(() => calculateBonuses(gameState.decorations))
 const activeEvent = computed(() => seasonTimer.value.getActiveEvent())
@@ -470,9 +478,10 @@ onMounted(async () => {
     }
   }, 10000)
 
-  // Tick season timer every second for live countdown
+  // Tick season timer and research progress every second for live countdown
   seasonTickInterval = setInterval(() => {
     seasonTimer.value = new SeasonTimer(gameState.seasonEpoch)
+    researchManager.value = ResearchManager.fromSerialized(researchManager.value.serialize())
     updateActiveOrders()
     checkEventParticipation()
   }, 1000)
@@ -875,18 +884,47 @@ function updateActiveOrders() {
   const engine = canvasRef.value?.getEngine?.()
   if (!engine) return
   const customers = engine.customers || []
-  activeOrders.value = customers
+  const now = Date.now()
+  const currentIds = new Set()
+
+  const orders = customers
     .filter(c => c.state !== 'walking_in' && c.state !== 'leaving' && c.orderedDish)
-    .map(c => ({
-      id: c.id,
-      customerName: c.name,
-      customerEmoji: c.emoji,
-      dish: c.orderedDish,
-      isCombo: c.isComboOrder,
-      comboName: c.orderedCombo?.name,
-      status: c.state === 'cooking' ? 'cooking' : c.state === 'ready_to_serve' ? 'ready' : c.state === 'eating' ? 'eating' : c.state === 'waiting_to_pay' ? 'served' : 'pending',
-      patience: c.patience
-    }))
+    .map(c => {
+      currentIds.add(c.id)
+      const lifecycle = orderLifecycleMap.value[c.id] || { orderTime: now }
+      const status = c.state === 'cooking' ? 'cooking' : c.state === 'ready_to_serve' ? 'ready' : c.state === 'eating' ? 'eating' : c.state === 'waiting_to_pay' ? 'served' : 'pending'
+
+      if (status === 'cooking' && !lifecycle.cookStartTime) lifecycle.cookStartTime = now
+      if (status === 'ready' && !lifecycle.readyTime) lifecycle.readyTime = now
+      if (status === 'eating' && !lifecycle.serveTime) lifecycle.serveTime = now
+      if (status === 'served' && !lifecycle.eatDoneTime) lifecycle.eatDoneTime = now
+
+      orderLifecycleMap.value[c.id] = lifecycle
+
+      return {
+        id: c.id,
+        customerName: c.name,
+        customerEmoji: c.emoji,
+        dish: c.orderedDish,
+        isCombo: c.isComboOrder,
+        comboName: c.orderedCombo?.name,
+        status,
+        patience: c.patience,
+        orderTime: lifecycle.orderTime,
+        cookStartTime: lifecycle.cookStartTime || null,
+        readyTime: lifecycle.readyTime || null,
+        serveTime: lifecycle.serveTime || null,
+        eatDoneTime: lifecycle.eatDoneTime || null
+      }
+    })
+
+  for (const id of Object.keys(orderLifecycleMap.value)) {
+    if (!currentIds.has(Number(id)) && !currentIds.has(id)) {
+      delete orderLifecycleMap.value[id]
+    }
+  }
+
+  activeOrders.value = orders
 }
 
 function checkEventParticipation() {
