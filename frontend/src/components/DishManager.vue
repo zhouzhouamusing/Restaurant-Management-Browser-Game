@@ -41,11 +41,15 @@
           >
             <span class="dish-emoji">{{ dish.emoji || '🍲' }}</span>
             <div class="dish-detail">
-              <span class="dish-name">{{ dish.name }}</span>
+              <div class="dish-name-row">
+                <span class="dish-name">{{ dish.name }}</span>
+                <span v-if="getRarityInfo(dish.id)" class="rarity-badge" :style="{ color: getRarityInfo(dish.id).color, borderColor: getRarityInfo(dish.id).color + '44' }">{{ getRarityInfo(dish.id).emoji }} {{ getRarityInfo(dish.id).name }}</span>
+              </div>
               <div class="dish-stats">
                 <span class="stat price">💰{{ dish.price }}</span>
                 <span class="stat time">⏱️{{ dish.cookTime }}s</span>
                 <span v-if="getDishQuality(dish.id)" class="stat quality" :class="qualityClass(dish.id)">⭐{{ getDishQuality(dish.id) }}</span>
+                <span class="stat review-stat">👍{{ getReviewRate(dish.id) }}%</span>
               </div>
             </div>
             <div class="dish-badges">
@@ -106,7 +110,10 @@
         >
           <span class="dish-emoji" :class="{ 'locked-emoji': !isResearched(dish.id) }">{{ dish.emoji }}</span>
           <div class="dish-detail">
-            <span class="dish-name">{{ dish.name }}</span>
+            <div class="dish-name-row">
+              <span class="dish-name">{{ dish.name }}</span>
+              <span v-if="getRarityInfo(dish.id)" class="rarity-badge" :style="{ color: getRarityInfo(dish.id).color, borderColor: getRarityInfo(dish.id).color + '44' }">{{ getRarityInfo(dish.id).emoji }}</span>
+            </div>
             <div class="dish-stats">
               <span class="stat price">💰{{ dish.price }}</span>
               <span class="stat">{{ getCategoryLabel(dish.category) }}</span>
@@ -317,7 +324,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, INGREDIENT_CATALOG, isDishAvailableInSeason, isDishSeasonal, getCategoryName, getSupplierById, getBuyPrice } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, SEASON_CONFIG, INGREDIENT_CATALOG, RARITY_CONFIG, isDishAvailableInSeason, isDishSeasonal, getCategoryName, getSupplierById, getBuyPrice, getPositiveReviewRate } from '../game/dishes.js'
 
 const props = defineProps({
   dishes: { type: Array, default: () => [] },
@@ -407,6 +414,17 @@ const unlockedSupplierList = computed(() => {
 function isSupplierUnlocked(id) { return props.unlockedSuppliers.includes(id) }
 function getAssignedSupplier(dishId) { return props.supplierAssignments[dishId] || 'market_basic' }
 function getDishQuality(dishId) { return props.qualityMap[dishId] || 50 }
+
+function getRarityInfo(dishId) {
+  const d = DISH_CATALOG[dishId]
+  if (!d || !d.rarity || d.rarity === 'common') return null
+  return RARITY_CONFIG[d.rarity]
+}
+
+function getReviewRate(dishId) {
+  const quality = getDishQuality(dishId)
+  return Math.round(getPositiveReviewRate(quality) * 100)
+}
 
 // Ingredient stock helpers
 const allIngredients = Object.values(INGREDIENT_CATALOG)
@@ -695,6 +713,26 @@ function formatTime(ms) {
   font-size: 12px;
   font-weight: 600;
   font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+}
+
+.dish-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rarity-badge {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.review-stat {
+  color: #2ecc71 !important;
+  font-weight: 600;
 }
 
 .dish-stats, .research-stats {

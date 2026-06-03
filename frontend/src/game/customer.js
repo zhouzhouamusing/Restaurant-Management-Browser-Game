@@ -2,8 +2,15 @@
  * 顾客类 - 顾客自主点菜、评价系统、对话气泡
  */
 import { getRandomBodyColor } from './character-renderer.js'
-import { calculateDishPayment } from './bonus-calculator.js'
-import { isDishAvailableInSeason, isDishSeasonal, COMBO_TEMPLATES, DISH_CATALOG } from './dishes.js'
+import { calculateDishPayment, calculateCustomerReview } from './bonus-calculator.js'
+import { isDishAvailableInSeason, isDishSeasonal, COMBO_TEMPLATES, DISH_CATALOG, RARITY_CONFIG, SEASON_CONFIG } from './dishes.js'
+
+const SEASON_PREFERENCE_DIALOGUES = {
+  spring: ['春天就该吃点清爽的~', '春暖花开，心情好！', '春季限定不能错过！'],
+  summer: ['太热了，来点凉的！', '夏天就要吃冰冰凉凉的~', '这天气必须来杯冷饮！'],
+  autumn: ['秋天贴膘！来点硬菜', '秋高气爽适合大吃一顿', '秋天的味道真好~'],
+  winter: ['冬天就要吃热乎的！', '来份暖胃的吧~', '天冷了吃点驱寒的！']
+}
 
 export class Customer {
   constructor(id, seatIndex, tablePos, availableDishes, bonuses = {}, extras = {}) {
@@ -56,6 +63,9 @@ export class Customer {
     this.orderedCombo = null
     this.comboDishes = []
 
+    this.reviewResult = null
+    this.seasonalPreference = Math.random() < 0.8
+
     const seasonalDishes = availableDishes.filter(d => isDishAvailableInSeason(d, this.currentSeason))
     const pickFrom = seasonalDishes.length > 0 ? seasonalDishes : availableDishes
     this._maybePickCombo(pickFrom)
@@ -76,16 +86,38 @@ export class Customer {
 
   _pickDish(dishes) {
     if (!dishes || dishes.length === 0) return null
-    const seasonal = dishes.filter(d => isDishSeasonal(d) && d.seasons.includes(this.currentSeason))
-    if (seasonal.length > 0 && Math.random() < 0.7) {
-      return seasonal[Math.floor(Math.random() * seasonal.length)]
+
+    if (this.seasonalPreference) {
+      const seasonal = dishes.filter(d => isDishSeasonal(d) && d.seasons.includes(this.currentSeason))
+      if (seasonal.length > 0 && Math.random() < 0.75) {
+        const rareSeasonal = seasonal.filter(d => {
+          const cat = DISH_CATALOG[d.id]
+          return cat && (cat.rarity === 'rare' || cat.rarity === 'epic' || cat.rarity === 'legendary')
+        })
+        if (rareSeasonal.length > 0 && Math.random() < 0.4) {
+          return rareSeasonal[Math.floor(Math.random() * rareSeasonal.length)]
+        }
+        return seasonal[Math.floor(Math.random() * seasonal.length)]
+      }
+    }
+
+    const withRarity = dishes.map(d => {
+      const cat = DISH_CATALOG[d.id]
+      const rarity = cat ? (RARITY_CONFIG[cat.rarity] || RARITY_CONFIG.common) : RARITY_CONFIG.common
+      return { dish: d, weight: rarity.revenueMultiplier }
+    })
+    const totalWeight = withRarity.reduce((sum, w) => sum + w.weight, 0)
+    let roll = Math.random() * totalWeight
+    for (const item of withRarity) {
+      roll -= item.weight
+      if (roll <= 0) return item.dish
     }
     return dishes[Math.floor(Math.random() * dishes.length)]
   }
 
   _maybePickCombo(availableDishes) {
     if (!this.combos || this.combos.length === 0) return
-    const comboChance = Math.min(0.25, 0.05 + this.restaurantLevel * 0.03)
+    const comboChance = Math.min(0.35, 0.08 + this.restaurantLevel * 0.04)
     if (Math.random() > comboChance) return
 
     const validCombos = this.combos.filter(combo => {
@@ -141,6 +173,27 @@ export class Customer {
     }
     const dish = this.wantedDish
     if (!dish) return '我想吃点东西~'
+
+    if (this.seasonalPreference && isDishSeasonal(dish)) {
+      const seasonDialogues = SEASON_PREFERENCE_DIALOGUES[this.currentSeason]
+      if (seasonDialogues && Math.random() < 0.5) {
+        return seasonDialogues[Math.floor(Math.random() * seasonDialogues.length)]
+      }
+    }
+
+    const catalogDish = DISH_CATALOG[dish.id]
+    if (catalogDish && catalogDish.rarity && catalogDish.rarity !== 'common') {
+      const rarityInfo = RARITY_CONFIG[catalogDish.rarity]
+      if (Math.random() < 0.4) {
+        const rareTemplates = [
+          `听说${dish.name}很难得！必须试试！`,
+          `${rarityInfo.emoji} 我专门来吃${dish.name}的！`,
+          `${dish.name}是${rarityInfo.name}菜品吧？期待！`
+        ]
+        return rareTemplates[Math.floor(Math.random() * rareTemplates.length)]
+      }
+    }
+
     const templates = [
       `我想要一份${dish.name}！`,
       `来份${dish.name}吧~`,
@@ -166,23 +219,27 @@ export class Customer {
   }
 
   _generateServeEvaluation() {
-    if (this.patience > 70) {
+    const quality = this.qualityMap[this.orderedDish?.id] || this.orderedDish?.baseQuality || 50
+    const review = calculateCustomerReview(quality, this.patience)
+    this.reviewResult = review
+
+    if (review.isPositive) {
       this.evaluationMood = 'happy'
-      const evals = ['上菜好快！太棒了！', '速度很快，满意~', '效率真高！👍', '完美的服务！']
+      const evals = ['品质超棒！五星好评！⭐', '食材新鲜，味道一流！', '太满意了！👍', '完美的味道！还会再来！']
       return evals[Math.floor(Math.random() * evals.length)]
     } else if (this.patience > 40) {
       this.evaluationMood = 'neutral'
-      const evals = ['速度还行吧', '等了一会儿', '还算及时~', '一般般']
+      const evals = ['味道还行吧...', '普普通通', '食材品质一般', '还可以更好']
       return evals[Math.floor(Math.random() * evals.length)]
     } else {
       this.evaluationMood = 'angry'
-      const evals = ['等太久了差评！', '我都快饿死了！', '服务太慢了！', '下次不来了！']
+      const evals = ['食材不新鲜差评！', '品质太差了！', '这品质对不起这价格！', '下次不来了！']
       return evals[Math.floor(Math.random() * evals.length)]
     }
   }
 
   _generatePayEvaluation() {
-    if (this.patience > 70) {
+    if (this.reviewResult && this.reviewResult.isPositive) {
       this.evaluationMood = 'happy'
       const evals = ['结账很快！很满意！', '服务真好~还会再来！', '体验很棒！五星好评！', '下次还来！😄']
       return evals[Math.floor(Math.random() * evals.length)]
@@ -200,6 +257,18 @@ export class Customer {
   _generateEatingDialogue() {
     const dish = this.orderedDish
     if (!dish) return '好吃~'
+
+    const catalogDish = DISH_CATALOG[dish.id]
+    if (catalogDish && catalogDish.rarity && catalogDish.rarity !== 'common' && Math.random() < 0.35) {
+      const rarityInfo = RARITY_CONFIG[catalogDish.rarity]
+      const rareEating = [
+        `不愧是${rarityInfo.name}菜品！绝了！`,
+        `${rarityInfo.emoji} 果然名不虚传！`,
+        `这个品质值得多付钱！`
+      ]
+      return rareEating[Math.floor(Math.random() * rareEating.length)]
+    }
+
     const templates = [
       `${dish.name}真好吃！`,
       `嗯~味道不错！`,

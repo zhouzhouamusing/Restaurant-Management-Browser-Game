@@ -58,12 +58,19 @@
                 <div class="checkout-customer">
                   <span class="checkout-emoji">{{ checkoutPanel.customer?.emoji }}</span>
                   <span class="checkout-name">{{ checkoutPanel.customer?.name }}</span>
+                  <span v-if="checkoutPanel.customer?.reviewResult" class="checkout-review" :class="checkoutPanel.customer.reviewResult.isPositive ? 'review-positive' : 'review-negative'">
+                    {{ checkoutPanel.customer.reviewResult.isPositive ? '👍 好评' : '👎 差评' }}
+                  </span>
                 </div>
                 <div class="checkout-bill-detail">
                   <div class="bill-row">
                     <span>菜品</span>
                     <span v-if="checkoutPanel.customer?.isComboOrder">🍱 {{ checkoutPanel.customer?.orderedCombo?.name || '套餐' }}</span>
                     <span v-else>{{ checkoutPanel.customer?.orderedDish?.emoji }} {{ checkoutPanel.customer?.orderedDish?.name }}</span>
+                  </div>
+                  <div v-if="checkoutDishRarity" class="bill-row rarity-row">
+                    <span>稀有度</span>
+                    <span class="rarity-tag" :style="{ color: checkoutDishRarity.color }">{{ checkoutDishRarity.emoji }} {{ checkoutDishRarity.name }} ×{{ checkoutDishRarity.revenueMultiplier }}</span>
                   </div>
                   <div class="bill-row">
                     <span>单价</span>
@@ -183,7 +190,7 @@ import { Staff, getHireCost } from '../game/staff.js'
 import { saveToLocal, loadFromLocal } from '../game/persistence.js'
 import { getDefaultDecorationState } from '../game/decorations.js'
 import { calculateBonuses, calculateDishQuality } from '../game/bonus-calculator.js'
-import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost, canServeDish, consumeIngredients, getBuyPrice, INGREDIENT_CATALOG } from '../game/dishes.js'
+import { DISH_CATALOG, SUPPLIER_CATALOG, COMBO_TEMPLATES, RARITY_CONFIG, getCurrentSeason, getSupplierById, isDishAvailableInSeason, validateCombo, getIngredientCost, canServeDish, consumeIngredients, getBuyPrice, INGREDIENT_CATALOG } from '../game/dishes.js'
 import { SeasonTimer } from '../game/season-timer.js'
 import { ResearchManager } from '../game/research.js'
 import GameHUD from '../components/GameHUD.vue'
@@ -234,7 +241,9 @@ const gameState = reactive({
   seasonEpoch: Date.now(),
   combos: [],
   unlockedComboTemplates: [],
-  ingredientStock: {}
+  ingredientStock: {},
+  positiveReviews: 0,
+  totalReviews: 0
 })
 
 const researchManager = ref(ResearchManager.fromSerialized(null))
@@ -315,6 +324,14 @@ function getSatisfactionEmoji() {
   return '😤'
 }
 
+const checkoutDishRarity = computed(() => {
+  const c = checkoutPanel.customer
+  if (!c || !c.orderedDish) return null
+  const catalogDish = DISH_CATALOG[c.orderedDish.id]
+  if (!catalogDish || !catalogDish.rarity || catalogDish.rarity === 'common') return null
+  return RARITY_CONFIG[catalogDish.rarity]
+})
+
 onMounted(async () => {
   if (!user.id) {
     router.push('/login')
@@ -356,6 +373,8 @@ onMounted(async () => {
     if (localSave.combos) gameState.combos = localSave.combos
     if (localSave.unlockedComboTemplates) gameState.unlockedComboTemplates = localSave.unlockedComboTemplates
     if (localSave.ingredientStock) gameState.ingredientStock = localSave.ingredientStock
+    if (localSave.positiveReviews) gameState.positiveReviews = localSave.positiveReviews
+    if (localSave.totalReviews) gameState.totalReviews = localSave.totalReviews
   } else if (backendSave) {
     gameState.coins = backendSave.coins
     gameState.level = backendSave.level
@@ -458,6 +477,10 @@ function handleCustomerClick(customer) {
     orderPanel.visible = true
   } else if (customer.state === 'ready_to_serve') {
     canvasRef.value.serveDish(customer)
+    gameState.totalReviews++
+    if (customer.reviewResult && customer.reviewResult.isPositive) {
+      gameState.positiveReviews++
+    }
     showToast('🍽️', `为${customer.name}上菜成功！`, 'success')
   } else if (customer.state === 'waiting_to_pay') {
     checkoutPanel.customer = customer
@@ -972,6 +995,33 @@ function logout() {
   font-weight: 600;
   color: #5d4037;
   font-family: 'ZCOOL KuaiLe', 'Nunito', cursive;
+}
+
+.checkout-review {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+
+.checkout-review.review-positive {
+  background: rgba(46, 204, 113, 0.15);
+  color: #27ae60;
+}
+
+.checkout-review.review-negative {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+
+.rarity-row {
+  color: #9b59b6;
+}
+
+.rarity-tag {
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .checkout-bill-detail {

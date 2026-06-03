@@ -27,6 +27,8 @@ export function saveToLocal(userId, gameState, billHistory) {
     combos: gameState.combos || [],
     unlockedComboTemplates: gameState.unlockedComboTemplates || [],
     ingredientStock: gameState.ingredientStock || {},
+    positiveReviews: gameState.positiveReviews || 0,
+    totalReviews: gameState.totalReviews || 0,
     savedAt: Date.now()
   }
   try {
@@ -54,6 +56,8 @@ export function loadFromLocal(userId) {
     if (!data.combos) data.combos = []
     if (!data.unlockedComboTemplates) data.unlockedComboTemplates = []
     if (!data.ingredientStock) data.ingredientStock = {}
+    if (!data.positiveReviews) data.positiveReviews = 0
+    if (!data.totalReviews) data.totalReviews = 0
     return data
   } catch (e) {
     return null

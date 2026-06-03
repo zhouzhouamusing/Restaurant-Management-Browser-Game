@@ -2,10 +2,18 @@
  * 菜品系统数据定义
  */
 
+export const RARITY_CONFIG = {
+  common:    { name: '普通', emoji: '⚪', color: '#95a5a6', revenueMultiplier: 1.0 },
+  uncommon:  { name: '优良', emoji: '🟢', color: '#2ecc71', revenueMultiplier: 1.15 },
+  rare:      { name: '稀有', emoji: '🔵', color: '#3498db', revenueMultiplier: 1.35 },
+  epic:      { name: '珍品', emoji: '🟣', color: '#9b59b6', revenueMultiplier: 1.6 },
+  legendary: { name: '传说', emoji: '🟡', color: '#f1c40f', revenueMultiplier: 2.0 }
+}
+
 export const DISH_CATALOG = {
   1: {
     id: 1, name: '蛋炒饭', price: 10, cookTime: 3, emoji: '🍛',
-    category: 'main', tier: 1,
+    category: 'main', tier: 1, rarity: 'common',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'rice', quantity: 1 }, { ingredientId: 'egg', quantity: 2 }],
     research: null,
@@ -13,7 +21,7 @@ export const DISH_CATALOG = {
   },
   2: {
     id: 2, name: '番茄汤', price: 8, cookTime: 2, emoji: '🍲',
-    category: 'main', tier: 1,
+    category: 'main', tier: 1, rarity: 'common',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'tomato', quantity: 2 }, { ingredientId: 'egg', quantity: 1 }],
     research: null,
@@ -21,7 +29,7 @@ export const DISH_CATALOG = {
   },
   3: {
     id: 3, name: '红烧肉', price: 20, cookTime: 5, emoji: '🍖',
-    category: 'main', tier: 1,
+    category: 'main', tier: 1, rarity: 'uncommon',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'pork', quantity: 3 }, { ingredientId: 'soy_sauce', quantity: 1 }],
     research: null,
@@ -29,7 +37,7 @@ export const DISH_CATALOG = {
   },
   4: {
     id: 4, name: '宫保鸡丁', price: 18, cookTime: 4, emoji: '🍜',
-    category: 'main', tier: 2,
+    category: 'main', tier: 2, rarity: 'uncommon',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'chicken', quantity: 2 }, { ingredientId: 'peanut', quantity: 1 }, { ingredientId: 'chili', quantity: 1 }],
     research: { cost: 50, successRate: 0.85, duration: 60 },
@@ -37,7 +45,7 @@ export const DISH_CATALOG = {
   },
   5: {
     id: 5, name: '鱼香肉丝', price: 16, cookTime: 4, emoji: '🥡',
-    category: 'main', tier: 2,
+    category: 'main', tier: 2, rarity: 'uncommon',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'pork', quantity: 2 }, { ingredientId: 'chili', quantity: 1 }, { ingredientId: 'vinegar', quantity: 1 }],
     research: { cost: 60, successRate: 0.82, duration: 75 },
@@ -45,7 +53,7 @@ export const DISH_CATALOG = {
   },
   6: {
     id: 6, name: '麻婆豆腐', price: 12, cookTime: 3, emoji: '🥘',
-    category: 'main', tier: 2,
+    category: 'main', tier: 2, rarity: 'uncommon',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'tofu', quantity: 2 }, { ingredientId: 'chili', quantity: 1 }, { ingredientId: 'pork', quantity: 1 }],
     research: { cost: 40, successRate: 0.90, duration: 45 },
@@ -53,7 +61,7 @@ export const DISH_CATALOG = {
   },
   7: {
     id: 7, name: '北京烤鸭', price: 38, cookTime: 7, emoji: '🍗',
-    category: 'main', tier: 3,
+    category: 'main', tier: 3, rarity: 'epic',
     seasons: ['autumn', 'winter'],
     ingredients: [{ ingredientId: 'duck', quantity: 3 }, { ingredientId: 'flour', quantity: 1 }, { ingredientId: 'scallion', quantity: 1 }],
     research: { cost: 120, successRate: 0.65, duration: 120 },
@@ -62,7 +70,7 @@ export const DISH_CATALOG = {
   },
   8: {
     id: 8, name: '珍珠奶茶', price: 15, cookTime: 2, emoji: '🧋',
-    category: 'drink', tier: 2,
+    category: 'drink', tier: 2, rarity: 'uncommon',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'tea', quantity: 1 }, { ingredientId: 'milk', quantity: 1 }, { ingredientId: 'starch', quantity: 1 }],
     research: { cost: 80, successRate: 0.88, duration: 50 },
@@ -70,7 +78,7 @@ export const DISH_CATALOG = {
   },
   9: {
     id: 9, name: '冰粉', price: 12, cookTime: 2, emoji: '🍧',
-    category: 'dessert', tier: 2,
+    category: 'dessert', tier: 2, rarity: 'rare',
     seasons: ['summer'],
     ingredients: [{ ingredientId: 'starch', quantity: 1 }, { ingredientId: 'brown_sugar', quantity: 1 }],
     research: { cost: 70, successRate: 0.80, duration: 90 },
@@ -79,7 +87,7 @@ export const DISH_CATALOG = {
   },
   10: {
     id: 10, name: '西瓜汁', price: 8, cookTime: 1, emoji: '🍉',
-    category: 'drink', tier: 2,
+    category: 'drink', tier: 2, rarity: 'rare',
     seasons: ['summer'],
     ingredients: [{ ingredientId: 'watermelon', quantity: 2 }],
     research: { cost: 40, successRate: 0.92, duration: 40 },
@@ -88,7 +96,7 @@ export const DISH_CATALOG = {
   },
   11: {
     id: 11, name: '热可可', price: 10, cookTime: 2, emoji: '☕',
-    category: 'drink', tier: 2,
+    category: 'drink', tier: 2, rarity: 'rare',
     seasons: ['winter'],
     ingredients: [{ ingredientId: 'cocoa', quantity: 1 }, { ingredientId: 'milk', quantity: 1 }],
     research: { cost: 50, successRate: 0.85, duration: 55 },
@@ -97,7 +105,7 @@ export const DISH_CATALOG = {
   },
   12: {
     id: 12, name: '火锅', price: 35, cookTime: 8, emoji: '🫕',
-    category: 'main', tier: 3,
+    category: 'main', tier: 3, rarity: 'epic',
     seasons: ['autumn', 'winter'],
     ingredients: [{ ingredientId: 'beef', quantity: 2 }, { ingredientId: 'tofu', quantity: 1 }, { ingredientId: 'chili', quantity: 2 }, { ingredientId: 'scallion', quantity: 1 }],
     research: { cost: 100, successRate: 0.70, duration: 110 },
@@ -106,7 +114,7 @@ export const DISH_CATALOG = {
   },
   13: {
     id: 13, name: '春卷', price: 14, cookTime: 3, emoji: '🥟',
-    category: 'main', tier: 2,
+    category: 'main', tier: 2, rarity: 'rare',
     seasons: ['spring'],
     ingredients: [{ ingredientId: 'flour', quantity: 1 }, { ingredientId: 'pork', quantity: 1 }, { ingredientId: 'vegetable', quantity: 1 }],
     research: { cost: 45, successRate: 0.90, duration: 50 },
@@ -115,7 +123,7 @@ export const DISH_CATALOG = {
   },
   14: {
     id: 14, name: '桂花糕', price: 16, cookTime: 4, emoji: '🍰',
-    category: 'dessert', tier: 2,
+    category: 'dessert', tier: 2, rarity: 'rare',
     seasons: ['autumn'],
     ingredients: [{ ingredientId: 'flour', quantity: 1 }, { ingredientId: 'osmanthus', quantity: 2 }, { ingredientId: 'brown_sugar', quantity: 1 }],
     research: { cost: 60, successRate: 0.78, duration: 80 },
@@ -124,7 +132,7 @@ export const DISH_CATALOG = {
   },
   15: {
     id: 15, name: '柠檬茶', price: 9, cookTime: 1, emoji: '🍋',
-    category: 'drink', tier: 2,
+    category: 'drink', tier: 2, rarity: 'uncommon',
     seasons: ['spring', 'summer'],
     ingredients: [{ ingredientId: 'lemon', quantity: 2 }, { ingredientId: 'tea', quantity: 1 }],
     research: { cost: 35, successRate: 0.93, duration: 35 },
@@ -133,7 +141,7 @@ export const DISH_CATALOG = {
   },
   16: {
     id: 16, name: '汤圆', price: 11, cookTime: 3, emoji: '🥮',
-    category: 'dessert', tier: 2,
+    category: 'dessert', tier: 2, rarity: 'rare',
     seasons: ['winter'],
     ingredients: [{ ingredientId: 'glutinous_rice', quantity: 2 }, { ingredientId: 'sesame', quantity: 1 }],
     research: { cost: 55, successRate: 0.85, duration: 60 },
@@ -142,7 +150,7 @@ export const DISH_CATALOG = {
   },
   17: {
     id: 17, name: '糖醋排骨', price: 25, cookTime: 5, emoji: '🥩',
-    category: 'main', tier: 2,
+    category: 'main', tier: 2, rarity: 'rare',
     seasons: ['spring', 'summer', 'autumn', 'winter'],
     ingredients: [{ ingredientId: 'pork', quantity: 3 }, { ingredientId: 'vinegar', quantity: 1 }, { ingredientId: 'brown_sugar', quantity: 1 }],
     research: { cost: 80, successRate: 0.75, duration: 90 },
@@ -150,7 +158,7 @@ export const DISH_CATALOG = {
   },
   18: {
     id: 18, name: '酸梅汤', price: 7, cookTime: 1, emoji: '🥤',
-    category: 'drink', tier: 1,
+    category: 'drink', tier: 1, rarity: 'uncommon',
     seasons: ['summer'],
     ingredients: [{ ingredientId: 'plum', quantity: 2 }, { ingredientId: 'brown_sugar', quantity: 1 }],
     research: { cost: 30, successRate: 0.95, duration: 30 },
@@ -159,7 +167,7 @@ export const DISH_CATALOG = {
   },
   19: {
     id: 19, name: '姜母鸭', price: 30, cookTime: 6, emoji: '🦆',
-    category: 'main', tier: 3,
+    category: 'main', tier: 3, rarity: 'legendary',
     seasons: ['winter'],
     ingredients: [{ ingredientId: 'duck', quantity: 2 }, { ingredientId: 'ginger', quantity: 2 }, { ingredientId: 'sesame', quantity: 1 }],
     research: { cost: 110, successRate: 0.68, duration: 100 },
@@ -168,7 +176,7 @@ export const DISH_CATALOG = {
   },
   20: {
     id: 20, name: '芒果布丁', price: 13, cookTime: 3, emoji: '🍮',
-    category: 'dessert', tier: 2,
+    category: 'dessert', tier: 2, rarity: 'rare',
     seasons: ['spring', 'summer'],
     ingredients: [{ ingredientId: 'mango', quantity: 2 }, { ingredientId: 'milk', quantity: 1 }],
     research: { cost: 65, successRate: 0.82, duration: 70 },
@@ -246,7 +254,7 @@ export const SEASON_CONFIG = {
   names: { spring: '春季', summer: '夏季', autumn: '秋季', winter: '冬季' },
   emojis: { spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️' },
   colors: { spring: '#a8e6cf', summer: '#ffd54f', autumn: '#ff8a65', winter: '#90caf9' },
-  cycleDuration: 2 * 60 * 60 * 1000
+  cycleDuration: 1 * 60 * 60 * 1000
 }
 
 export const COMBO_TEMPLATES = [
@@ -401,4 +409,21 @@ export function getBuyPrice(ingredientId, quantity, supplier) {
   const ingredient = INGREDIENT_CATALOG[ingredientId]
   if (!ingredient) return 0
   return Math.ceil(ingredient.basePrice * quantity * supplier.priceMultiplier)
+}
+
+export function getDishRarity(dish) {
+  return RARITY_CONFIG[dish.rarity || 'common']
+}
+
+export function getRarityMultiplier(dish) {
+  const rarity = RARITY_CONFIG[dish.rarity || 'common']
+  return rarity ? rarity.revenueMultiplier : 1
+}
+
+export function getPositiveReviewRate(qualityScore) {
+  if (qualityScore >= 90) return 0.95
+  if (qualityScore >= 75) return 0.80
+  if (qualityScore >= 60) return 0.65
+  if (qualityScore >= 45) return 0.50
+  return 0.35
 }
